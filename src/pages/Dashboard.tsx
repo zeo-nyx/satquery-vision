@@ -79,11 +79,6 @@ export default function Dashboard() {
     [handleFiles],
   );
 
-  // Poll for loaded ML models
-  const updateModelStatus = useCallback(() => {
-    setLoadedModels(getLoadedPipelines());
-  }, []);
-
   const removeImage = (id: string) => {
     setImages((prev) => prev.filter((img) => img.id !== id));
   };

@@ -11,11 +11,6 @@ import {
   getObjectDetector,
   getFeatureExtractor,
   RS_LABELS,
-  LAND_COVER_LABELS,
-  type ZeroShotImageClassificationPipeline,
-  type ImageToTextPipeline,
-  type ObjectDetectionPipeline,
-  type FeatureExtractionPipeline,
 } from "./models";
 import {
   analyzeImagePixels,

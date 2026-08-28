@@ -11,7 +11,6 @@ import {
   analyzeCrossModalWithML,
   type MLAnalysisResult,
 } from "../ml/analysis";
-import { type ImageAnalysis as PixelAnalysis } from "../image/analyze";
 
 /**
  * Execute an analysis pipeline using real ML models (Transformers.js)

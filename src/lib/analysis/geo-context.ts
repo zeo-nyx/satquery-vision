@@ -60,6 +60,7 @@ async function geocodeLocation(query: string): Promise<{
   displayName: string;
 } | null> {
   const location = extractLocation(query);
+  console.log("[GeoContext] Extracted location:", location);
   if (!location) return null;
 
   try {

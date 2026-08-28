@@ -166,6 +166,7 @@ async function executeModelPipeline(
     case "cross_modal_analysis":
       return executeCrossModal(images, query, onStep, steps);
     case "text_context":
+      console.log("[Pipeline] Routing to text_context");
       return executeTextContext(query, onStep, steps);
     default:
       return { answer: "No matching pipeline found.", confidence: 0.3, detail: "Unknown task" };
@@ -827,7 +828,9 @@ async function executeTextContext(
 
   let context;
   try {
+    console.log("[GeoContext] Fetching context for query:", query);
     context = await fetchGeoContext(query);
+    console.log("[GeoContext] Result:", context ? "found location: " + context.location.name : "null");
   } catch (err) {
     console.error("[GeoContext] fetchGeoContext failed:", err);
     context = null;

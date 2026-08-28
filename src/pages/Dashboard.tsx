@@ -93,8 +93,8 @@ export default function Dashboard() {
     setImages((prev) => prev.filter((img) => img.id !== id));
   };
 
-  const handleAnalyze = async () => {
-    if (!query.trim()) return;
+  const runAnalysis = async (q: string, imgs: ImageMetadata[]) => {
+    if (!q.trim()) return;
 
     setIsAnalyzing(true);
     setResult(null);
@@ -102,26 +102,26 @@ export default function Dashboard() {
     setCurrentTaskPlan(null);
 
     try {
-      // Step 0: Validate inputs
-      const taskPlan = routeQuery(query, images);
-      const validation = validateImageInputs(images, taskPlan.inputType);
+      const taskPlan = routeQuery(q, imgs);
+      console.log("[SatQuery] Task plan:", taskPlan);
+      const validation = validateImageInputs(imgs, taskPlan.inputType);
+      console.log("[SatQuery] Validation:", validation);
       setValidationWarnings(validation.warnings);
-
-      // Step 1: Route the query
       setCurrentTaskPlan(taskPlan);
 
-      // Step 2: Execute the analysis pipeline
+      console.log("[SatQuery] Starting pipeline...");
       const analysisResult = await executeAnalysis(
         taskPlan,
-        images,
-        query,
+        imgs,
+        q,
         (steps) => setAnalysisSteps([...steps]),
       );
+      console.log("[SatQuery] Pipeline result:", analysisResult);
 
       setResult(analysisResult);
       setLoadedModels(getLoadedPipelines());
     } catch (error) {
-      console.error("Analysis failed:", error);
+      console.error("[SatQuery] Analysis failed:", error);
       setAnalysisSteps((prev) => [
         ...prev,
         {
@@ -135,11 +135,18 @@ export default function Dashboard() {
     }
   };
 
+  const handleAnalyze = () => {
+    runAnalysis(query, images);
+  };
+
   const handleExampleQuery = (q: string, needsImages = true) => {
     setQuery(q);
     if (needsImages && images.length === 0) {
-      // Auto-load demo images only for image-based queries
       loadDemoImages();
+    }
+    // For text-only queries, auto-analyze immediately
+    if (!needsImages) {
+      runAnalysis(q, []);
     }
   };
 

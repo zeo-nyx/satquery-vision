@@ -190,7 +190,7 @@ async function executeVQA(
     status: "completed",
     detail: ml.modelsUsed.includes("CLIP (zero-shot classification)")
       ? `Top: "${ml.classification.label}" (${Math.round(ml.classification.score * 100)}%)`
-      : "CLIP not available — using pixel analysis",
+      : "CLIP not available - using pixel analysis",
     duration: 300,
   };
   onStep([...steps]);
@@ -227,7 +227,7 @@ async function executeVQA(
   return {
     answer,
     confidence,
-    detail: `VQA — ${ml.modelsUsed.join(", ") || "pixel analysis only"}`,
+    detail: `VQA - ${ml.modelsUsed.join(", ") || "pixel analysis only"}`,
     boundingBoxes: boxes.length > 0 ? boxes : undefined,
   };
 }
@@ -262,7 +262,8 @@ function buildVQAAnswer(
     if (waterPct > 12) {
       parts.push(`**Yes, there is a significant water body visible in this image.**`);
       parts.push("");
-      parts.push(`Approximately ${waterPct}% of the image shows blue-dominant pixels characteristic of water. ${waterPct > 30 ? "This is a large water feature — likely a lake, wide river, or coastal zone." : waterPct > 18 ? "This appears to be a river or reservoir." : "A smaller water feature is present — possibly a stream, pond, or canal."}`);
+      const waterDesc = waterPct > 30 ? "This is a large water feature - likely a lake, wide river, or coastal zone." : waterPct > 18 ? "This appears to be a river or reservoir." : "A smaller water feature is present - possibly a stream, pond, or canal.";
+      parts.push(`Approximately ${waterPct}% of the image shows blue-dominant pixels characteristic of water. ${waterDesc}`);
       parts.push("");
       parts.push(`**How we know:** The AI model classified this scene as "${ml.classification.label}" with ${Math.round(ml.classification.score * 100)}% confidence. Water absorbs infrared light strongly, creating a distinctive dark signature in satellite imagery that our models recognize.`);
     } else if (waterPct > 4) {
@@ -278,9 +279,11 @@ function buildVQAAnswer(
     if (urbanPct > 15) {
       parts.push(`**Yes, this image shows urban or built-up areas.**`);
       parts.push("");
-      parts.push(`About ${urbanPct}% of the image contains gray/bright pixels typical of buildings, roads, and other man-made surfaces. ${urbanPct > 35 ? "This appears to be a densely built area — likely a city center or industrial zone." : urbanPct > 20 ? "This looks like a suburban or mixed urban area with buildings alongside some green spaces." : "There are scattered structures, possibly a small town or peri-urban settlement."}`);
+      const urbanDesc = urbanPct > 35 ? "This appears to be a densely built area - likely a city center or industrial zone." : urbanPct > 20 ? "This looks like a suburban or mixed urban area with buildings alongside some green spaces." : "There are scattered structures, possibly a small town or peri-urban settlement.";
+      parts.push(`About ${urbanPct}% of the image contains gray/bright pixels typical of buildings, roads, and other man-made surfaces. ${urbanDesc}`);
       parts.push("");
-      parts.push(`The image has ${Math.round(d.textureComplexity * 100)}% texture complexity (${d.textureComplexity > 0.5 ? "high — consistent with sharp edges of buildings and roads" : "moderate — suggesting some development within a natural landscape"}).`);
+      const texDesc = d.textureComplexity > 0.5 ? "high - consistent with sharp edges of buildings and roads" : "moderate - suggesting some development within a natural landscape";
+      parts.push(`The image has ${Math.round(d.textureComplexity * 100)}% texture complexity (${texDesc}).`);
     } else {
       parts.push(`**Limited urban development is visible.**`);
       parts.push("");
@@ -290,25 +293,28 @@ function buildVQAAnswer(
     parts.push(`**Vegetation analysis:**`);
     parts.push("");
     if (vegPct > 30) {
-      parts.push(`Yes — approximately ${vegPct}% of this image shows vegetation. ${vegPct > 60 ? "This is a heavily vegetated area — likely a forest, dense woodland, or lush agricultural zone." : "There is moderate vegetation cover, suggesting a mix of natural and cultivated green spaces."}`);
+      const vegDesc = vegPct > 60 ? "This is a heavily vegetated area - likely a forest, dense woodland, or lush agricultural zone." : "There is moderate vegetation cover, suggesting a mix of natural and cultivated green spaces.";
+      parts.push(`Yes - approximately ${vegPct}% of this image shows vegetation. ${vegDesc}`);
     } else if (vegPct > 10) {
       parts.push(`There is some vegetation present (${vegPct}% of the image), but it is not the dominant land cover. The area may be semi-arid, partially developed, or in a dry season.`);
     } else {
       parts.push(`Vegetation is minimal (${vegPct}% of the image). The landscape is dominated by ${d.classification.toLowerCase()}.`);
     }
     parts.push("");
-    parts.push(`The vegetation health index (NDVI) is ${d.ndviEstimate > 0 ? "+" : ""}${d.ndviEstimate.toFixed(2)} — ${d.ndviEstimate > 0.15 ? "indicating healthy, actively growing plants" : d.ndviEstimate > 0 ? "suggesting sparse or dry-season vegetation" : "suggesting dormant or stressed vegetation"}.`);
+    const ndviDesc = d.ndviEstimate > 0.15 ? "indicating healthy, actively growing plants" : d.ndviEstimate > 0 ? "suggesting sparse or dry-season vegetation" : "suggesting dormant or stressed vegetation";
+    const ndviSign = d.ndviEstimate > 0 ? "+" : "";
+    parts.push(`The vegetation health index (NDVI) is ${ndviSign}${d.ndviEstimate.toFixed(2)} - ${ndviDesc}.`);
   } else {
-    // General VQA — answer whatever was asked
+    // General VQA - answer whatever was asked
     if (q.includes("what") || q.includes("describe") || q.includes("show")) {
       parts.push(`**This satellite image shows a ${d.classification.toLowerCase()} scene.**`);
       parts.push("");
       parts.push(`The main land cover types detected are:`);
-      if (vegPct > 10) parts.push(`• **Vegetation** — about ${vegPct}% of the image (${d.ndviEstimate > 0.15 ? "healthy green areas" : "sparse or dry vegetation"})`);
-      if (urbanPct > 10) parts.push(`• **Built-up areas** — about ${urbanPct}% (buildings, roads, paved surfaces)`);
-      if (waterPct > 5) parts.push(`• **Water** — about ${waterPct}% of the image`);
-      if (soilPct > 10) parts.push(`• **Exposed soil** — about ${soilPct}% (bare ground, construction sites, or agricultural fields)`);
-      if (vegPct <= 10 && urbanPct <= 10 && waterPct <= 5 && soilPct <= 10) parts.push(`• **Other land cover** — about ${Math.round(dist.other * 100)}%`);
+      if (vegPct > 10) parts.push(`• **Vegetation** - about ${vegPct}% of the image (${d.ndviEstimate > 0.15 ? "healthy green areas" : "sparse or dry vegetation"})`);
+      if (urbanPct > 10) parts.push(`• **Built-up areas** - about ${urbanPct}% (buildings, roads, paved surfaces)`);
+      if (waterPct > 5) parts.push(`• **Water** - about ${waterPct}% of the image`);
+      if (soilPct > 10) parts.push(`• **Exposed soil** - about ${soilPct}% (bare ground, construction sites, or agricultural fields)`);
+      if (vegPct <= 10 && urbanPct <= 10 && waterPct <= 5 && soilPct <= 10) parts.push(`• **Other land cover** - about ${Math.round(dist.other * 100)}%`);
     } else {
       parts.push(`**Analysis of your question:**`);
       parts.push("");
@@ -329,7 +335,7 @@ function buildVQAAnswer(
       parts.push("");
       parts.push(`**Features identified by the AI:**`);
       for (const f of relevant.slice(0, 4)) {
-        parts.push(`• ${capitalizeFirst(f.label)} — ${Math.round(f.score * 100)}% confidence`);
+        parts.push(`• ${capitalizeFirst(f.label)} - ${Math.round(f.score * 100)}% confidence`);
       }
     }
   }
@@ -386,7 +392,7 @@ async function executeCaptioning(
   steps[steps.length - 1] = {
     step: "ViT-GPT2 Captioning",
     status: "completed",
-    detail: ml.caption ? `Description: "${ml.caption.slice(0, 60)}..."` : "Captioner unavailable — using pixel analysis",
+    detail: ml.caption ? `Description: "${ml.caption.slice(0, 60)}..."` : "Captioner unavailable - using pixel analysis",
     duration: 500,
   };
   onStep([...steps]);
@@ -415,10 +421,10 @@ async function executeCaptioning(
 
   // Land cover breakdown
   parts.push(`**Land cover breakdown:**`);
-  if (vegPct > 10) parts.push(`• **Vegetation:** ${vegPct}% — ${d.ndviEstimate > 0.15 ? "healthy, actively growing vegetation" : "sparse, dry, or seasonal vegetation"}`);
-  if (urbanPct > 10) parts.push(`• **Built-up areas:** ${urbanPct}% — buildings, roads, and paved surfaces`);
-  if (waterPct > 5) parts.push(`• **Water bodies:** ${waterPct}% — rivers, lakes, or wet areas`);
-  if (soilPct > 10) parts.push(`• **Exposed ground:** ${soilPct}% — bare soil, sand, or construction sites`);
+  if (vegPct > 10) parts.push(`• **Vegetation:** ${vegPct}% - ${d.ndviEstimate > 0.15 ? "healthy, actively growing vegetation" : "sparse, dry, or seasonal vegetation"}`);
+  if (urbanPct > 10) parts.push(`• **Built-up areas:** ${urbanPct}% - buildings, roads, and paved surfaces`);
+  if (waterPct > 5) parts.push(`• **Water bodies:** ${waterPct}% - rivers, lakes, or wet areas`);
+  if (soilPct > 10) parts.push(`• **Exposed ground:** ${soilPct}% - bare soil, sand, or construction sites`);
   if (vegPct <= 10 && urbanPct <= 10 && waterPct <= 5 && soilPct <= 10) parts.push(`• **Other:** ${Math.round(dist.other * 100)}%`);
   parts.push("");
 
@@ -446,7 +452,7 @@ async function executeCaptioning(
   return {
     answer: parts.join("\n"),
     confidence: ml.caption ? 0.88 : 0.78,
-    detail: `Captioning — ${ml.modelsUsed.join(", ") || "pixel analysis only"}`,
+    detail: `Captioning - ${ml.modelsUsed.join(", ") || "pixel analysis only"}`,
   };
 }
 
@@ -532,7 +538,7 @@ async function executeGrounding(
   return {
     answer,
     confidence: boxes.length > 0 ? Math.min(0.95, 0.7 + boxes.reduce((s, b) => s + b.confidence, 0) / boxes.length * 0.3) : 0.6,
-    detail: `Grounding — ${ml.detectedFeatures.length} features + spatial analysis`,
+    detail: `Grounding - ${ml.detectedFeatures.length} features + spatial analysis`,
     boundingBoxes: boxes,
   };
 }
@@ -595,7 +601,7 @@ async function executeChangeAnalysis(
   steps[steps.length - 1] = {
     step: "ML Image Analysis",
     status: "completed",
-    detail: `Analyzed both images — ${[...new Set([...changeResult.ml1.modelsUsed, ...changeResult.ml2.modelsUsed])].join(", ") || "pixel analysis"}`,
+    detail: `Analyzed both images - ${[...new Set([...changeResult.ml1.modelsUsed, ...changeResult.ml2.modelsUsed])].join(", ") || "pixel analysis"}`,
     duration: 400,
   };
   onStep([...steps]);
@@ -634,7 +640,7 @@ async function executeChangeAnalysis(
   return {
     answer,
     confidence: Math.min(0.95, confidence),
-    detail: `Change analysis — ${changeResult.ml1.modelsUsed.length + changeResult.ml2.modelsUsed.length} ML models + pixel diff`,
+    detail: `Change analysis - ${changeResult.ml1.modelsUsed.length + changeResult.ml2.modelsUsed.length} ML models + pixel diff`,
     changeMap: changeResult.changeMapUrl,
   };
 }
@@ -672,9 +678,9 @@ function buildChangeAnswer(
   } else if (s.changePercent < 15) {
     parts.push(`**Moderate changes are visible.** About ${s.changePercent.toFixed(1)}% of the area shows noticeable differences between the two dates.`);
   } else if (s.changePercent < 40) {
-    parts.push(`**Significant changes have occurred.** Roughly ${s.changePercent.toFixed(1)}% of the landscape looks different between the two dates — this represents substantial land cover change.`);
+    parts.push(`**Significant changes have occurred.** Roughly ${s.changePercent.toFixed(1)}% of the landscape looks different between the two dates - this represents substantial land cover change.`);
   } else {
-    parts.push(`**Major transformation is evident.** Approximately ${s.changePercent.toFixed(1)}% of the area has changed dramatically — this could indicate large-scale development, natural disaster, seasonal flooding, or land clearing.`);
+    parts.push(`**Major transformation is evident.** Approximately ${s.changePercent.toFixed(1)}% of the area has changed dramatically - this could indicate large-scale development, natural disaster, seasonal flooding, or land clearing.`);
   }
   parts.push("");
 
@@ -699,9 +705,9 @@ function buildChangeAnswer(
 
   if (Math.abs(waterChange) > 2) {
     if (waterChange > 0) {
-      changes.push(`**Water expansion:** Water bodies grew by ${waterChange.toFixed(1)} percentage points — possibly from rainfall, flooding, or reservoir filling.`);
+      changes.push(`**Water expansion:** Water bodies grew by ${waterChange.toFixed(1)} percentage points - possibly from rainfall, flooding, or reservoir filling.`);
     } else {
-      changes.push(`**Water reduction:** Water areas shrank by ${Math.abs(waterChange).toFixed(1)} percentage points — possibly from drought, drainage, or seasonal low water.`);
+      changes.push(`**Water reduction:** Water areas shrank by ${Math.abs(waterChange).toFixed(1)} percentage points - possibly from drought, drainage, or seasonal low water.`);
     }
   }
 
@@ -721,7 +727,7 @@ function buildChangeAnswer(
       parts.push("");
     }
   } else {
-    parts.push("The changes appear to be subtle — possibly related to lighting conditions, seasonal variation, or minor land management rather than major land cover change.");
+    parts.push("The changes appear to be subtle - possibly related to lighting conditions, seasonal variation, or minor land management rather than major land cover change.");
     parts.push("");
   }
 
@@ -800,7 +806,7 @@ async function executeCrossModal(
   return {
     answer: result.fusionResult,
     confidence: 0.82 + result.correlation * 0.1,
-    detail: `Optical-SAR fusion — ${[...result.opticalML.modelsUsed, ...result.sarML.modelsUsed].join(", ")}`,
+    detail: `Optical-SAR fusion - ${[...result.opticalML.modelsUsed, ...result.sarML.modelsUsed].join(", ")}`,
     boundingBoxes: boxes.length > 0 ? boxes : undefined,
   };
 }
@@ -838,7 +844,7 @@ async function executeTextContext(
   steps[steps.length - 1] = {
     step: "Geocoding",
     status: "completed",
-    detail: `${context.location.name} — ${context.location.lat.toFixed(2)}°N, ${context.location.lon.toFixed(2)}°E`,
+    detail: `${context.location.name} - ${context.location.lat.toFixed(2)}°N, ${context.location.lon.toFixed(2)}°E`,
     duration: 400,
   };
   onStep([...steps]);
@@ -874,7 +880,7 @@ async function executeTextContext(
   return {
     answer,
     confidence: 0.82,
-    detail: `Geo-context — Nominatim + Wikipedia + Open-Meteo + RS Knowledge Base`,
+    detail: `Geo-context - Nominatim + Wikipedia + Open-Meteo + RS Knowledge Base`,
   };
 }
 

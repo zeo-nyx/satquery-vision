@@ -199,7 +199,7 @@ const RS_KNOWLEDGE: Record<string, {
       "SAR (Sentinel-1) valuable for穿透 cloud cover for monitoring",
     ],
     rsNotes: [
-      "Cloud-free optical images are rare — SAR is essential for consistent monitoring",
+      "Cloud-free optical images are rare - SAR is essential for consistent monitoring",
       "Deforestation creates sharp boundaries visible in both optical and SAR",
       "Biomass estimation requires multi-frequency SAR data",
     ],

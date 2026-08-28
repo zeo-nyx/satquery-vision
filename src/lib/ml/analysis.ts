@@ -284,7 +284,7 @@ async function runObjectDetection(
   dataUrl: string,
 ): Promise<MLAnalysisResult["detectedFeatures"] | null> {
   // Use CLIP zero-shot with RS-specific labels instead of DETR
-  // DETR is trained on COCO (giraffes, cars, etc.) — useless for satellite images
+  // DETR is trained on COCO (giraffes, cars, etc.) - useless for satellite images
   const classifier = await getZeroShotClassifier();
   if (!classifier) return null;
 
@@ -374,7 +374,7 @@ function buildFusionDescription(
   // --- Layman summary first ---
   parts.push(`**What this analysis found:**`);
   parts.push("");
-  parts.push(`By combining optical (visible light) and SAR (radar) satellite images of the same area, we get a more complete picture than either sensor alone. The optical image shows what the landscape looks like to the human eye — colors, vegetation, water. The SAR radar image reveals surface structure and texture, and can see through clouds and at night.`);
+  parts.push(`By combining optical (visible light) and SAR (radar) satellite images of the same area, we get a more complete picture than either sensor alone. The optical image shows what the landscape looks like to the human eye - colors, vegetation, water. The SAR radar image reveals surface structure and texture, and can see through clouds and at night.`);
   parts.push("");
 
   // --- Key findings in plain language ---
@@ -387,18 +387,30 @@ function buildFusionDescription(
   parts.push(`**Key findings:**`);
 
   if (opticalUrban > 15 || sarUrban > 15) {
-    parts.push(`• **Built-up/urban areas:** The optical image shows about ${opticalUrban}% built-up surfaces, while the radar data confirms ${sarUrban}% strong-backscatter zones (buildings and hard surfaces reflect radar strongly). ${opticalUrban > 20 ? "This is a significant urban area." : "Urban structures are present but not dominant."}`);
+    const urbanNote = opticalUrban > 20 ? "This is a significant urban area." : "Urban structures are present but not dominant.";
+    parts.push(`• **Built-up/urban areas:** The optical image shows about ${opticalUrban}% built-up surfaces, while the radar data confirms ${sarUrban}% strong-backscatter zones (buildings and hard surfaces reflect radar strongly). ${urbanNote}`);
   }
   if (opticalWater > 8 || sarWater > 8) {
-    parts.push(`• **Water bodies:** Optical shows ${opticalWater}% blue-dominant pixels. SAR confirms ${sarWater}% low-backscatter zones (smooth water reflects radar away). ${Math.abs(opticalWater - sarWater) < 8 ? "Both sensors agree on water locations — high confidence." : "The sensors show some disagreement, which may indicate shallow water, wet soil, or seasonal flooding."}`);
+    const waterNote = Math.abs(opticalWater - sarWater) < 8 ? "Both sensors agree on water locations - high confidence." : "The sensors show some disagreement, which may indicate shallow water, wet soil, or seasonal flooding.";
+    parts.push(`• **Water bodies:** Optical shows ${opticalWater}% blue-dominant pixels. SAR confirms ${sarWater}% low-backscatter zones (smooth water reflects radar away). ${waterNote}`);
   }
   if (opticalVeg > 20) {
-    parts.push(`• **Vegetation:** The optical image shows ${opticalVeg}% vegetation cover with an NDVI of ${optical.domain.ndviEstimate > 0 ? "+" : ""}${optical.domain.ndviEstimate.toFixed(2)} (${optical.domain.ndviEstimate > 0.15 ? "healthy green vegetation" : "sparse or seasonal vegetation"}).`);
+    const ndviSign = optical.domain.ndviEstimate > 0 ? "+" : "";
+    const vegHealth = optical.domain.ndviEstimate > 0.15 ? "healthy green vegetation" : "sparse or seasonal vegetation";
+    parts.push(`• **Vegetation:** The optical image shows ${opticalVeg}% vegetation cover with an NDVI of ${ndviSign}${optical.domain.ndviEstimate.toFixed(2)} (${vegHealth}).`);
   }
 
   // Agreement quality
   parts.push("");
-  parts.push(`• **Sensor agreement:** ${corrPct}% spatial correlation between the two modalities. ${corrPct > 70 ? "This is a strong match — both sensors are telling a consistent story about this landscape." : corrPct > 50 ? "Moderate agreement — the sensors complement each other, which is expected since they measure different physical properties." : "Low agreement — this often means the area has complex mixed land cover that benefits most from multi-sensor analysis."}`);
+  let agreementNote: string;
+  if (corrPct > 70) {
+    agreementNote = "This is a strong match - both sensors are telling a consistent story about this landscape.";
+  } else if (corrPct > 50) {
+    agreementNote = "Moderate agreement - the sensors complement each other, which is expected since they measure different physical properties.";
+  } else {
+    agreementNote = "Low agreement - this often means the area has complex mixed land cover that benefits most from multi-sensor analysis.";
+  }
+  parts.push(`• **Sensor agreement:** ${corrPct}% spatial correlation between the two modalities. ${agreementNote}`);
 
   // CLIP classifications
   if (optical.classification.label !== "unknown" || sar.classification.label !== "unknown") {
@@ -424,7 +436,7 @@ function buildFusionDescription(
   }
 
   parts.push("");
-  parts.push(`*Why use both sensors?* Optical imagery captures colors and spectral details that reveal vegetation health, water quality, and land use. SAR radar penetrates clouds, works day and night, and measures surface roughness and structure — making it invaluable for mapping buildings, detecting floods, and monitoring areas with frequent cloud cover. Together, they provide a significantly more reliable analysis than either one alone.`);
+  parts.push(`*Why use both sensors?* Optical imagery captures colors and spectral details that reveal vegetation health, water quality, and land use. SAR radar penetrates clouds, works day and night, and measures surface roughness and structure - making it invaluable for mapping buildings, detecting floods, and monitoring areas with frequent cloud cover. Together, they provide a significantly more reliable analysis than either one alone.`);
 
   return parts.filter(Boolean).join("\n");
 }

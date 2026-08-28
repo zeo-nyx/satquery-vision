@@ -11,6 +11,11 @@ import {
   analyzeCrossModalWithML,
   type MLAnalysisResult,
 } from "../ml/analysis";
+import {
+  adaptToBigEarthNet,
+  domainPostProcess,
+  getRSDomainPrompts,
+} from "../ml/domain-adaptation";
 
 /**
  * Execute an analysis pipeline using real ML models (Transformers.js)
@@ -236,17 +241,27 @@ function buildVQAAnswer(
 
   const parts: string[] = [];
 
-  // ML classification result
+  // Domain-adapted classification using BigEarthNet taxonomy
   if (ml.classification.label !== "unknown") {
+    const adapted = adaptToBigEarthNet(
+      ml.classification.label,
+      ml.classification.score,
+      d,
+    );
+    parts.push(
+      `**Domain-Adapted Classification (BigEarthNet):**\n• Primary: ${adapted.adaptedLabel} [Code: ${adapted.bigEarthNetCode}] — ${Math.round(adapted.confidence * 100)}%\n• Top matches:\n${adapted.topMatches.map((m) => `  — ${m.label} [${m.code}]: ${Math.round(m.score * 100)}%`).join("\n")}`,
+    );
+
+    // Also show raw CLIP label for transparency
     const topLabels = ml.classification.allLabels.slice(0, 3);
     parts.push(
-      `**ML Classification (CLIP):**\n${topLabels.map((l) => `• ${l.label}: ${Math.round(l.score * 100)}%`).join("\n")}`,
+      `\n**CLIP Zero-Shot (raw):**\n${topLabels.map((l) => `• ${l.label}: ${Math.round(l.score * 100)}%`).join("\n")}`,
     );
   }
 
   // ML caption if available
   if (ml.caption) {
-    parts.push(`**ML Caption (ViT-GPT2):** "${ml.caption}"`);
+    parts.push(`\n**ML Caption (ViT-GPT2):** "${ml.caption}"`);
   }
 
   // Domain-specific analysis answering the query
@@ -295,6 +310,15 @@ function buildVQAAnswer(
   if (ml.objects.length > 0) {
     const uniqueLabels = [...new Set(ml.objects.map((o) => o.label))];
     parts.push(`\n**Objects detected (DETR):** ${uniqueLabels.join(", ")}.`);
+  }
+
+  // Domain adaptation notes
+  const domainResult = domainPostProcess(ml, query);
+  if (domainResult.rsTerminology.length > 0) {
+    parts.push(`\n**RS Domain Features:** ${domainResult.rsTerminology.join(" • ")}`);
+  }
+  if (domainResult.domainNotes.length > 0) {
+    parts.push(`\n**Domain Notes:**\n${domainResult.domainNotes.map((n) => `• ${n}`).join("\n")}`);
   }
 
   return parts.join("\n");

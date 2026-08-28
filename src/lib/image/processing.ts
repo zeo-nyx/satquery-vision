@@ -1,5 +1,20 @@
 import type { ImageMetadata, ImageModality } from "../agent/types";
 
+export interface InputValidation {
+  isValid: boolean;
+  warnings: string[];
+  errors: string[];
+  compatibility: {
+    formatSupported: boolean;
+    crsDetected: string | null;
+    datesDetected: (string | null)[];
+    sameRegion: boolean | null;
+    sameCRS: boolean | null;
+    temporalPair: boolean;
+    modalities: string[];
+  };
+}
+
 /**
  * Generate a unique ID for uploaded images.
  */
@@ -13,6 +28,101 @@ export function generateImageId(): string {
  * For real GeoTIFF files, we'd use Rasterio/GDAL — here we extract
  * what's available from the browser APIs and file properties.
  */
+/**
+ * Validate a set of images for compatibility.
+ * Checks format, CRS, dates, and modality pairing.
+ */
+export function validateImageInputs(
+  images: ImageMetadata[],
+  expectedType: string,
+): InputValidation {
+  const warnings: string[] = [];
+  const errors: string[] = [];
+
+  if (images.length === 0) {
+    errors.push("No images provided");
+    return { isValid: false, warnings, errors, compatibility: defaultCompat() };
+  }
+
+  const formats = images.map((i) => i.format);
+  const crsList = images.map((i) => i.crs);
+  const dates = images.map((i) => i.acquisitionDate);
+  const modalities = images.map((i) => i.modality || "unknown");
+
+  // Format checks
+  for (const img of images) {
+    if (img.format === "unknown") {
+      warnings.push(`${img.fileName}: format not recognized — processing may be limited`);
+    }
+    if (img.format === "geotiff" || img.format === "tiff") {
+      // Good — geospatial format
+    } else if (img.format === "png" || img.format === "jpeg") {
+      warnings.push(`${img.fileName}: PNG/JPEG accepted for benchmark datasets only — no geospatial metadata`);
+    }
+  }
+
+  // CRS consistency
+  const uniqueCRS = [...new Set(crsList.filter(Boolean))];
+  const sameCRS = uniqueCRS.length <= 1;
+  if (!sameCRS && images.length > 1) {
+    warnings.push(`Multiple CRS detected: ${uniqueCRS.join(", ")} — images may not be spatially aligned`);
+  }
+
+  // Date checks for bi-temporal
+  if (expectedType === "bi_temporal" || images.length === 2) {
+    const validDates = dates.filter(Boolean);
+    if (validDates.length === 2 && validDates[0] === validDates[1]) {
+      warnings.push("Both images have the same acquisition date — change analysis may be meaningless");
+    }
+    if (validDates.length < 2) {
+      warnings.push("Could not determine acquisition dates for both images — temporal comparison assumed");
+    }
+  }
+
+  // Modality checks for cross-modal
+  if (expectedType === "optical_sar_pair" || (images.length === 2)) {
+    const hasOptical = modalities.some((m) => m === "optical");
+    const hasSAR = modalities.some((m) => m === "sar");
+    if (expectedType === "optical_sar_pair" && (!hasOptical || !hasSAR)) {
+      warnings.push(`Expected optical+SAR pair but detected: ${modalities.join(", ")} — cross-modal analysis may be limited`);
+    }
+  }
+
+  // Dimension checks
+  for (const img of images) {
+    if (img.width < 32 || img.height < 32) {
+      warnings.push(`${img.fileName}: very small image (${img.width}×${img.height}) — analysis may be unreliable`);
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    warnings,
+    errors,
+    compatibility: {
+      formatSupported: !formats.some((f) => f === "unknown"),
+      crsDetected: crsList.find(Boolean) || null,
+      datesDetected: dates,
+      sameRegion: sameCRS,
+      sameCRS,
+      temporalPair: dates.filter(Boolean).length === 2,
+      modalities,
+    },
+  };
+}
+
+function defaultCompat(): InputValidation["compatibility"] {
+  return {
+    formatSupported: false,
+    crsDetected: null,
+    datesDetected: [],
+    sameRegion: null,
+    sameCRS: null,
+    temporalPair: false,
+    modalities: [],
+  };
+}
+
 export async function extractImageMetadata(
   file: File,
 ): Promise<ImageMetadata> {

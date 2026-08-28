@@ -1,5 +1,4 @@
 import type { ImageMetadata, TaskPlan, TaskType, InputType } from "./types";
-import { isTextOnlyQuery } from "../analysis/geo-context";
 
 /**
  * Rule-based query router — classifies user queries and selects
@@ -12,8 +11,8 @@ export function routeQuery(
   const q = query.toLowerCase().trim();
   const numImages = images.length;
 
-  // ── Text-only query (no images) ─────────────────────────────────
-  if (numImages === 0 && isTextOnlyQuery(query)) {
+  // ── No images uploaded: always route to text-only context ──────
+  if (numImages === 0) {
     return {
       task: "text_context",
       inputType: "text_only",

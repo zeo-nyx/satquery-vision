@@ -1,0 +1,38 @@
+# SatQuery AI - Python Requirements
+# For training pipeline and local development
+
+# Core ML
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.35.0
+accelerate>=0.25.0
+datasets>=2.14.0
+
+# ONNX export
+onnx>=1.14.0
+onnxruntime>=1.16.0
+
+# Image processing
+Pillow>=10.0.0
+numpy>=1.24.0
+opencv-python>=4.8.0
+
+# Geospatial (optional, for GeoTIFF support)
+# rasterio>=1.3.0
+# GDAL>=3.6.0
+
+# HuggingFace
+huggingface_hub>=0.17.0
+sentencepiece>=0.1.99
+ftfy>=6.1.0
+regex>=2023.0.0
+
+# Training utilities
+tqdm>=4.65.0
+matplotlib>=3.7.0
+scikit-learn>=1.3.0
+
+# Web framework (for local API server)
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6

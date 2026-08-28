@@ -4,11 +4,11 @@
  * Enables text-only queries about specific geographic areas and timelines
  * WITHOUT requiring image uploads. Fetches real data from open sources:
  *   - Nominatim (OpenStreetMap) for geocoding
- *   - Wikipedia/Wikidata for area context
+ *   - Wikipedia for area context
  *   - Open-Meteo for weather/climate context
  *   - Built-in land-cover knowledge base
  *
- * Example: "What is the land cover of Mumbai in 2024?"
+ * Example: "What is the land cover of Mumbai?"
  *          "Tell me about deforestation in the Amazon."
  */
 
@@ -59,12 +59,14 @@ async function geocodeLocation(query: string): Promise<{
   areaType: string;
   displayName: string;
 } | null> {
-  // Extract location from query
   const location = extractLocation(query);
   if (!location) return null;
 
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1&addressdetails=1`;
+    const url =
+      "https://nominatim.openstreetmap.org/search?q=" +
+      encodeURIComponent(location) +
+      "&format=json&limit=1&addressdetails=1";
     const resp = await fetch(url, {
       headers: { "User-Agent": "SatQueryAI/1.0 (remote-sensing-analysis)" },
     });
@@ -76,7 +78,6 @@ async function geocodeLocation(query: string): Promise<{
     const r = results[0];
     const addr = r.address || {};
     const country = addr.country || "Unknown";
-    const displayName = r.display_name;
 
     return {
       name: location,
@@ -84,35 +85,91 @@ async function geocodeLocation(query: string): Promise<{
       lat: parseFloat(r.lat),
       lon: parseFloat(r.lon),
       areaType: r.type || r.category || "place",
-      displayName,
+      displayName: r.display_name,
     };
   } catch {
     return null;
   }
 }
 
+/**
+ * Extract a location name from a natural-language query.
+ * Uses multiple strategies and returns the best match.
+ */
 function extractLocation(query: string): string | null {
-  const q = query.toLowerCase();
+  const q = query.toLowerCase().trim();
 
-  // Common patterns
-  const patterns = [
-    /(?:of|in|at|near|around|about)\s+(.+?)(?:\s+(?:in|during|for|from|between)\s+\d{4})?(?:\?|$)/i,
-    /(?:what|how|describe|tell)\s+(?:about|me about)\s+(.+?)(?:\s+(?:in|during|for|from|between)\s+\d{4})?(?:\?|$)/i,
-    /(.+?)\s+(?:land\s*cover|vegetation|deforestation|urbanization|climate|terrain|landscape|region|area|zone)/i,
-    /(?:satellite|remote sensing|aerial)\s+(?:image|imagery|view|analysis)\s+(?:of|for|in)\s+(.+?)(?:\?|$)/i,
+  // Strategy 1: "X of/in/at/near Y" patterns
+  const prepPatterns = [
+    // "land cover of Mumbai", "vegetation in the Amazon", "climate of India"
+    /\b(?:of|in|at|near|around|about|for|over)\s+(?:the\s+)?(.+?)(?:\s+(?:in|during|for|from|between)\s+\d{4})?(?:\?|$)/i,
+    // "Mumbai's land cover", "Amazon's vegetation"
+    /\b([a-z][a-z\s]{2,40})'s\s+(?:land|vegetation|deforestation|climate|terrain|landscape|region|area|urbanization)/i,
+    // "Tell me about X", "Describe X", "What about X"
+    /\b(?:tell\s+me\s+about|describe|what\s+about|how\s+about|info(?:rmation)?\s+(?:on|about))\s+(?:the\s+)?(.+?)(?:\s+(?:in|during|for)\s+\d{4})?(?:\?|$)/i,
+    // "satellite image/imagery of/for/in X"
+    /\b(?:satellite|remote\s+sensing|aerial|space)\s+(?:image|imagery|view|analysis|photo|picture)\s+(?:of|for|in|over)\s+(?:the\s+)?(.+?)(?:\?|$)/i,
+    // "monitoring X", "analyze X", "analyze the X region"
+    /\b(?:monitor|monitoring|analyze|analyse|study|survey|observe|observe)\s+(?:the\s+)?(.+?)(?:\s+(?:region|area|zone|territory))?(?:\?|$)/i,
+    // "What is X like?" or "What does X look like?"
+    /\bwhat\s+(?:is|does)\s+(?:the\s+)?(.+?)\s+(?:look\s+)?like(?:\?|$)/i,
+    // "X region/area/terrain/landscape"
+    /\b(?:the\s+)?(.+?)\s+(?:region|area|terrain|landscape|territory|zone|basin|watershed|catchment)(?:\s|$|\?)/i,
+    // "deforestation/urbanization/climate in/of X"
+    /\b(?:deforestation|urbanization|climate|vegetation|land\s+cover|land\s+use|erosion|flooding|drought|biodiversity)\s+(?:in|of|across|throughout)\s+(?:the\s+)?(.+?)(?:\?|$)/i,
   ];
 
-  for (const p of patterns) {
+  for (const p of prepPatterns) {
     const m = q.match(p);
     if (m && m[1]) {
       let loc = m[1].trim();
-      // Clean up common filler words
-      loc = loc.replace(/\b(the|a|an|this|that|these|those)\b/gi, "").trim();
-      loc = loc.replace(/\s+/g, " ");
+      // Clean filler words
+      loc = loc
+        .replace(/\b(the|a|an|this|that|these|those|and|or|with|from)\b/gi, "")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+      // Remove trailing punctuation
+      loc = loc.replace(/[?.!,;:]+$/, "").trim();
       if (loc.length > 2 && loc.length < 100) {
         return loc;
       }
     }
+  }
+
+  // Strategy 2: Known geographic names directly in the query
+  const knownPlaces = [
+    "amazon", "sahara", "gobi", "himalaya", "himalayas",
+    "mumbai", "delhi", "bangalore", "chennai", "kolkata",
+    "tokyo", "london", "paris", "new york", "los angeles", "san francisco",
+    "beijing", "shanghai", "cairo", "nairobi", "cape town",
+    "sydney", "melbourne", "toronto", "vancouver",
+    "brazil", "india", "china", "australia", "africa", "asia", "europe",
+    "california", "florida", "texas", "alaska", "greenland", "iceland",
+    "nile", "ganges", "yangtze", "mississippi", "danube",
+    "congo", "niger", "zambezi", "thames", "rhone",
+    "borneo", "madagascar", "sumatra", "borneo", "java",
+    "andes", "rockies", "alps", "urals", "atlas",
+    "pacific", "atlantic", "indian ocean", "arctic", "mediterranean",
+    "sahel", "steppe", "tundra", "taiga", "savanna",
+    "ganges basin", "indus", "brahmaputra", "mekong",
+    "everest", "kilimanjaro", "denali",
+    "great barrier reef", "galapagos",
+    "sonoran", "kalahari", "thar", "gobi",
+    "sundarbans", "patagonia",
+  ];
+
+  for (const place of knownPlaces) {
+    if (q.includes(place)) {
+      return place;
+    }
+  }
+
+  // Strategy 3: Capitalize likely proper nouns (2+ consecutive capitalized words after prepositions)
+  const properNoun = q.match(
+    /(?:of|in|at|near|about|for|over|across|throughout)\s+(?:the\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/,
+  );
+  if (properNoun && properNoun[1]) {
+    return properNoun[1].trim();
   }
 
   return null;
@@ -125,19 +182,34 @@ async function fetchWikipediaContext(location: string): Promise<{
   url: string;
 } | null> {
   try {
-    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(location)}`;
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "SatQueryAI/1.0 (remote-sensing-analysis)" },
-    });
+    // Try exact name first, then title-cased
+    const names = [
+      location,
+      location
+        .split(" ")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" "),
+    ];
 
-    if (!resp.ok) return null;
-    const data = await resp.json();
+    for (const name of names) {
+      const url =
+        "https://en.wikipedia.org/api/rest_v1/page/summary/" +
+        encodeURIComponent(name);
+      const resp = await fetch(url, {
+        headers: { "User-Agent": "SatQueryAI/1.0 (remote-sensing-analysis)" },
+      });
 
-    if (data.extract) {
-      return {
-        summary: data.extract,
-        url: data.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(location)}`,
-      };
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.extract) {
+          return {
+            summary: data.extract,
+            url:
+              data.content_urls?.desktop?.page ||
+              "https://en.wikipedia.org/wiki/" + encodeURIComponent(name),
+          };
+        }
+      }
     }
     return null;
   } catch {
@@ -156,17 +228,28 @@ async function fetchClimateContext(
   precipitation: number;
 } | null> {
   try {
-    const url = `https://climate-api.open-meteo.com/v1/climate?latitude=${lat}&longitude=${lon}&models=EC_Earth3P_HR&start_date=2020-01-01&end_date=2024-12-31&monthly=temperature_2m_mean,precipitation_sum`;
+    const url =
+      "https://climate-api.open-meteo.com/v1/climate?latitude=" +
+      lat +
+      "&longitude=" +
+      lon +
+      "&models=EC_Earth3P_HR&start_date=2020-01-01&end_date=2024-12-31&monthly=temperature_2m_mean,precipitation_sum";
     const resp = await fetch(url);
     if (!resp.ok) return null;
 
     const data = await resp.json();
     if (!data.monthly) return null;
 
-    const temps = data.monthly.temperature_2m_mean || [];
-    const precip = data.monthly.precipitation_sum || [];
-    const avgTemp = temps.length > 0 ? temps.reduce((a: number, b: number) => a + b, 0) / temps.length : 0;
-    const totalPrecip = precip.length > 0 ? precip.reduce((a: number, b: number) => a + b, 0) / precip.length : 0;
+    const temps: number[] = data.monthly.temperature_2m_mean || [];
+    const precip: number[] = data.monthly.precipitation_sum || [];
+    const avgTemp =
+      temps.length > 0
+        ? temps.reduce((a: number, b: number) => a + b, 0) / temps.length
+        : 0;
+    const totalPrecip =
+      precip.length > 0
+        ? precip.reduce((a: number, b: number) => a + b, 0) / precip.length
+        : 0;
 
     let climateType = "temperate";
     if (avgTemp > 25) climateType = "tropical";
@@ -186,29 +269,36 @@ async function fetchClimateContext(
 
 // ── Remote Sensing Knowledge Base ────────────────────────────────
 
-const RS_KNOWLEDGE: Record<string, {
-  landCover: string[];
-  rsNotes: string[];
-  typicalSensors: string[];
-}> = {
+const RS_KNOWLEDGE: Record<
+  string,
+  {
+    landCover: string[];
+    rsNotes: string[];
+    typicalSensors: string[];
+  }
+> = {
   tropical: {
     landCover: [
       "Dense tropical forest with high canopy cover",
-      "High NDVI values (0.4–0.8) indicating active photosynthesis",
+      "High NDVI values (0.4-0.8) indicating active photosynthesis",
       "Frequent cloud cover limiting optical imagery availability",
-      "SAR (Sentinel-1) valuable for穿透 cloud cover for monitoring",
+      "SAR (Sentinel-1) valuable for penetrating cloud cover for monitoring",
     ],
     rsNotes: [
       "Cloud-free optical images are rare - SAR is essential for consistent monitoring",
       "Deforestation creates sharp boundaries visible in both optical and SAR",
       "Biomass estimation requires multi-frequency SAR data",
     ],
-    typicalSensors: ["Sentinel-2 (optical)", "Sentinel-1 (SAR)", "Landsat 8/9"],
+    typicalSensors: [
+      "Sentinel-2 (optical)",
+      "Sentinel-1 (SAR)",
+      "Landsat 8/9",
+    ],
   },
   arid: {
     landCover: [
       "Sparse vegetation, exposed soil and rock",
-      "Low NDVI values (0.0–0.1)",
+      "Low NDVI values (0.0-0.1)",
       "Sand dunes and desert surfaces with high reflectance",
       "Occasional oasis or wadi vegetation",
     ],
@@ -217,7 +307,11 @@ const RS_KNOWLEDGE: Record<string, {
       "SAR backscatter from sand is typically low due to surface smoothness",
       "Sand migration and desertification can be tracked with multi-temporal data",
     ],
-    typicalSensors: ["Sentinel-2", "Landsat 8/9", "MODIS for large-scale monitoring"],
+    typicalSensors: [
+      "Sentinel-2",
+      "Landsat 8/9",
+      "MODIS for large-scale monitoring",
+    ],
   },
   temperate: {
     landCover: [
@@ -245,9 +339,13 @@ const RS_KNOWLEDGE: Record<string, {
       "Coastal erosion and flooding require regular monitoring",
       "Urban heat island effects visible in thermal imagery",
     ],
-    typicalSensors: ["Sentinel-2", "Sentinel-1", "Landsat 8/9 (thermal)"],
+    typicalSensors: [
+      "Sentinel-2",
+      "Sentinel-1",
+      "Landsat 8/9 (thermal)",
+    ],
   },
-  cold: {
+  "cold/boreal": {
     landCover: [
       "Boreal forest (taiga) or tundra",
       "Snow and ice cover for much of the year",
@@ -259,7 +357,11 @@ const RS_KNOWLEDGE: Record<string, {
       "SAR is critical for year-round monitoring in high latitudes",
       "Permafrost thaw detection requires InSAR (interferometric SAR)",
     ],
-    typicalSensors: ["Sentinel-1 (SAR)", "Sentinel-2 (summer only)", "ICESat-2 (lidar)"],
+    typicalSensors: [
+      "Sentinel-1 (SAR)",
+      "Sentinel-2 (summer only)",
+      "ICESat-2 (lidar)",
+    ],
   },
   urban: {
     landCover: [
@@ -274,7 +376,11 @@ const RS_KNOWLEDGE: Record<string, {
       "Urban sprawl detection is a key application of multi-temporal analysis",
       "Night-time lights (VIIRS) can complement daytime imagery",
     ],
-    typicalSensors: ["WorldView/GeoEye (very high-res)", "Sentinel-1/2", "Planet (daily)"],
+    typicalSensors: [
+      "WorldView/GeoEye (very high-res)",
+      "Sentinel-1/2",
+      "Planet (daily)",
+    ],
   },
   coastal: {
     landCover: [
@@ -295,25 +401,26 @@ const RS_KNOWLEDGE: Record<string, {
 
 // ── Main function ───────────────────────────────────────────────
 
-export async function fetchGeoContext(query: string): Promise<GeoContextResult | null> {
-  // Step 1: Geocode the location
+export async function fetchGeoContext(
+  query: string,
+): Promise<GeoContextResult | null> {
   const geo = await geocodeLocation(query);
   if (!geo) return null;
 
-  // Step 2: Fetch Wikipedia context in parallel with climate
   const [wiki, climate] = await Promise.all([
     fetchWikipediaContext(geo.name),
     fetchClimateContext(geo.lat, geo.lon),
   ]);
 
-  // Step 3: Get RS knowledge for this climate type
   const climateType = climate?.climate || "temperate";
   const rsKnowledge = RS_KNOWLEDGE[climateType] || RS_KNOWLEDGE["temperate"];
 
-  // Step 4: Build the result
   const sources: string[] = [];
-  const description = wiki?.summary || `Information about ${geo.name}, ${geo.country}.`;
-  if (wiki) sources.push(`Wikipedia: ${wiki.url}`);
+  const description =
+    wiki?.summary ||
+    geo.displayName ||
+    "Information about " + geo.name + ", " + geo.country + ".";
+  if (wiki) sources.push("Wikipedia: " + wiki.url);
 
   return {
     location: {
@@ -330,19 +437,30 @@ export async function fetchGeoContext(query: string): Promise<GeoContextResult |
     },
     climate: {
       summary: climate
-        ? `${climateType} climate with average temperature of ${climate.avgTemp}°C and approximately ${climate.precipitation}mm monthly precipitation.`
-        : `${climateType} climate.`,
+        ? climateType +
+          " climate with average temperature of " +
+          climate.avgTemp +
+          "\u00B0C and approximately " +
+          climate.precipitation +
+          "mm monthly precipitation."
+        : climateType + " climate.",
       details: climate
         ? [
-          `Climate type: ${climateType}`,
-          `Average temperature: ${climate.avgTemp}°C`,
-          `Monthly precipitation: ${climate.precipitation}mm`,
-        ]
+            "Climate type: " + climateType,
+            "Average temperature: " + climate.avgTemp + "\u00B0C",
+            "Monthly precipitation: " + climate.precipitation + "mm",
+          ]
         : [],
     },
     remoteSensing: {
-      summary: rsKnowledge.rsNotes[0] || "Standard remote sensing analysis applies.",
-      details: [...rsKnowledge.rsNotes, ...rsKnowledge.typicalSensors.map((s) => `Recommended sensor: ${s}`)],
+      summary:
+        rsKnowledge.rsNotes[0] || "Standard remote sensing analysis applies.",
+      details: [
+        ...rsKnowledge.rsNotes,
+        ...rsKnowledge.typicalSensors.map(function (s) {
+          return "Recommended sensor: " + s;
+        }),
+      ],
     },
     sources,
   };
@@ -350,9 +468,6 @@ export async function fetchGeoContext(query: string): Promise<GeoContextResult |
 
 // ── Text-only query answer builder ───────────────────────────────
 
-/**
- * Build a layman-friendly answer from geo-context for text-only queries.
- */
 export function buildGeoContextAnswer(
   query: string,
   context: GeoContextResult,
@@ -361,39 +476,45 @@ export function buildGeoContextAnswer(
   const loc = context.location;
   const parts: string[] = [];
 
-  // Direct answer to the question
-  parts.push(`**${loc.name}, ${loc.country}** (coordinates: ${loc.lat.toFixed(2)}°N, ${loc.lon.toFixed(2)}°E)`);
+  parts.push(
+    "**" + loc.name + ", " + loc.country +
+    "** (coordinates: " + loc.lat.toFixed(2) + "\u00B0N, " +
+    loc.lon.toFixed(2) + "\u00B0E)",
+  );
   parts.push("");
 
-  // What this place is
-  parts.push(`**About this area:**`);
+  parts.push("**About this area:**");
   parts.push(context.description);
   parts.push("");
 
-  // Land cover
-  if (q.includes("land cover") || q.includes("vegetation") || q.includes("terrain") || q.includes("landscape") || q.includes("what")) {
-    parts.push(`**Typical land cover and landscape:**`);
+  const isAboutLand =
+    q.includes("land cover") ||
+    q.includes("vegetation") ||
+    q.includes("terrain") ||
+    q.includes("landscape") ||
+    q.includes("what") ||
+    q.includes("describe");
+
+  if (isAboutLand) {
+    parts.push("**Typical land cover and landscape:**");
     for (const d of context.landCover.details) {
-      parts.push(`• ${d}`);
+      parts.push("- " + d);
     }
     parts.push("");
   }
 
-  // Climate
-  parts.push(`**Climate context:**`);
+  parts.push("**Climate context:**");
   parts.push(context.climate.summary);
   parts.push("");
 
-  // Remote sensing analysis
-  parts.push(`**What satellite imagery would reveal:**`);
+  parts.push("**What satellite imagery would reveal:**");
   for (const d of context.remoteSensing.details) {
-    parts.push(`• ${d}`);
+    parts.push("- " + d);
   }
   parts.push("");
 
-  // Sources
   if (context.sources.length > 0) {
-    parts.push(`*Sources: ${context.sources.join(", ")}*`);
+    parts.push("*Sources: " + context.sources.join(", ") + "*");
   }
 
   return parts.join("\n");
@@ -404,24 +525,54 @@ export function buildGeoContextAnswer(
 export function isTextOnlyQuery(query: string): boolean {
   const q = query.toLowerCase();
 
-  // Explicitly asking about a place/area without mentioning "this image"
-  const mentionsImage = q.includes("this image") || q.includes("the image") || q.includes("uploaded") || q.includes("attached");
-  const mentionsPlace = q.includes(" of ") || q.includes(" in ") || q.includes("about") || q.includes("tell me");
+  // If the query explicitly references an uploaded/attached image, it is NOT text-only
+  const mentionsImage =
+    q.includes("this image") ||
+    q.includes("the image") ||
+    q.includes("uploaded") ||
+    q.includes("attached") ||
+    q.includes("uploaded image") ||
+    q.includes("attached image") ||
+    q.includes("these images");
 
-  // Geographic keywords
-  const hasGeoTerms = /\b(region|area|city|country|continent|province|state|zone|territory|land|landscape)\b/i.test(q);
+  if (mentionsImage) return false;
 
-  // Known location patterns (country names, city names, etc.)
-  const hasLocation = /\b(africa|asia|europe|america|india|china|brazil|amazon|sahara|gobi|himalaya|mumbai|delhi|tokyo|london|paris|new york|california|australia)\b/i.test(q);
+  // If no images are available AND query mentions a geographic concept, treat as text-only
+  const hasGeoConcept =
+    q.includes(" of ") ||
+    q.includes(" in ") ||
+    q.includes("about") ||
+    q.includes("tell me") ||
+    q.includes("describe") ||
+    q.includes("what is") ||
+    q.includes("what does") ||
+    q.includes("how is") ||
+    q.includes("monitor") ||
+    q.includes("analyze") ||
+    q.includes("survey");
 
-  // If asking about a place without referencing an image
-  if (!mentionsImage && (hasGeoTerms || hasLocation || mentionsPlace)) {
+  const hasGeoTerms =
+    /\b(region|area|city|country|continent|province|state|zone|territory|land|landscape|terrain|basin|forest|desert|mountain|river|lake|coast|island|peninsula|valley|plateau)\b/i.test(
+      q,
+    );
+
+  const hasKnownPlace =
+    /\b(africa|asia|europe|america|india|china|brazil|amazon|sahara|gobi|himalaya|mumbai|delhi|tokyo|london|paris|new york|california|australia|nile|ganges|yangtze|borneo|madagascar|andes|alps|rockies|congo|niger|zambezi|everest|patagonia|sundarbans|thar|kalahari|sonoran|iceland|greenland|arctic|antarctic|pacific|atlantic|mediterranean|sahel|tundra|taiga|savanna)\b/i.test(
+      q,
+    );
+
+  const hasRSTopic =
+    /\b(deforestation|urbanization|climate|land\s*use|land\s*cover|vegetation|erosion|flooding|drought|biodiversity|forest\s*cover|water\s*resource|irrigation|agriculture|cropland|wetland|mangrove|coral|glacier|permafrost|desertification)\b/i.test(
+      q,
+    );
+
+  if (hasGeoConcept && (hasGeoTerms || hasKnownPlace || hasRSTopic)) {
     return true;
   }
 
-  // Specific RS topics about regions
-  if (q.includes("deforestation") || q.includes("urbanization") || q.includes("climate") || q.includes("land use")) {
-    if (!mentionsImage) return true;
+  // Direct geographic question without "this image"
+  if (hasKnownPlace && !mentionsImage) {
+    return true;
   }
 
   return false;

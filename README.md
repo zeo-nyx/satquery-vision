@@ -1,293 +1,262 @@
-## Overview
+# SatQuery AI
 
-This project uses the following tech stack:
-- Vite
-- Typescript
-- React Router v7 (all imports from `react-router` instead of `react-router-dom`)
-- React 19 (for frontend components)
-- Tailwind v4 (for styling)
-- Shadcn UI (for UI components library)
-- Lucide Icons (for icons)
-- Convex (for backend & database)
-- Convex Auth (for authentication)
-- Framer Motion (for animations)
-- Three js (for 3d models)
+**An agentic vision-language assistant for remote sensing imagery.**
 
-All relevant files live in the 'src' directory.
+SatQuery AI analyzes satellite images through natural-language queries. It routes each query to specialized models, combines their results, and returns evidence-grounded answers with confidence scores and execution traces.
 
-Use bun for the package manager.
+![Neobrutalism Theme](https://img.shields.io/badge/theme-Neobrutalism%20Minimalism-black?style=flat-square)
+![Transformers.js](https://img.shields.io/badge/models-Transformers.js-blue?style=flat-square)
+![BigEarthNet](https://img.shields.io/badge/adaptation-BigEarthNet-green?style=flat-square)
 
-## Setup
+---
 
-This project is set up already and running on a cloud environment, as well as a convex development in the sandbox.
-
-## Environment Variables
-
-The project is set up with project specific CONVEX_DEPLOYMENT and VITE_CONVEX_URL environment variables on the client side.
-
-The convex server has a separate set of environment variables that are accessible by the convex backend.
-
-Currently, these variables include auth-specific keys: JWKS, JWT_PRIVATE_KEY, and SITE_URL.
-
-
-# Using Authentication (Important!)
-
-You must follow these conventions when using authentication.
-
-## Auth is already set up.
-
-All convex authentication functions are already set up. The auth currently uses email OTP and anonymous users, but can support more.
-
-The email OTP configuration is defined in `src/convex/auth/emailOtp.ts`. DO NOT MODIFY THIS FILE.
-
-Also, DO NOT MODIFY THESE AUTH FILES: `src/convex/auth.config.ts` and `src/convex/auth.ts`.
-
-## Using Convex Auth on the backend
-
-On the `src/convex/users.ts` file, you can use the `getCurrentUser` function to get the current user's data.
-
-## Using Convex Auth on the frontend
-
-The `/auth` page is already set up to use auth. Navigate to `/auth` for all log in / sign up sequences.
-
-You MUST use this hook to get user data. Never do this yourself without the hook:
-```typescript
-import { useAuth } from "@/hooks/use-auth";
-
-const { isLoading, isAuthenticated, user, signIn, signOut } = useAuth();
-```
-
-## Protected Routes
-
-The starter `/dashboard` route is protected with `RequireAuth`. Extend that page
-for the product's authenticated experience, and reuse `RequireAuth` when adding
-another protected route — do NOT hand-roll a redirect to `/auth`, since landing
-on a bare sign-in form with no explanation of what was blocked is confusing.
-
-`RequireAuth` states the block on the page the visitor asked for and sends them
-to `/auth?returnTo=<current route>` when they choose to sign in, so they come
-back to it. Pass `title` and `description` to say what the page is:
-
-```tsx
-<Route
-  path="/dashboard"
-  element={
-    <RequireAuth
-      title="Sign in to view your dashboard"
-      description="Your projects and settings live here."
-    >
-      <Dashboard />
-    </RequireAuth>
-  }
-/>
-```
-
-Pass `redirectImmediately` for a route where bouncing straight to `/auth` really
-is better.
-
-## Auth Page
-
-The auth page is defined in `src/pages/Auth.tsx`. Send sign-in and sign-up actions
-to `/auth`.
-
-## Authorization
-
-You can perform authorization checks on the frontend and backend.
-
-On the frontend, you can use the `useAuth` hook to get the current user's data and authentication state.
-
-You should also be protecting queries, mutations, and actions at the base level, checking for authorization securely.
-
-## Adding a redirect after auth
-
-The `/auth` route in `src/main.tsx` redirects to `/dashboard` by default. If the
-product's main authenticated route is different, update `redirectAfterAuth` to
-that route. A validated same-origin `returnTo` query parameter takes priority so
-users can resume the protected page they originally requested. Never leave an
-authenticated product redirecting back to the public landing page.
-
-## Complete authenticated products
-
-When the requested product implies accounts, a workspace, a dashboard, or other
-signed-in functionality, the task is not complete with only a landing page and
-auth form. Build the main authenticated experience, protect its route, and verify
-that signing in reaches it.
-
-# Frontend Conventions
-
-You will be using the Vite frontend with React 19, Tailwind v4, and Shadcn UI.
-
-Generally, pages should be in the `src/pages` folder, and components should be in the `src/components` folder.
-
-Shadcn primitives are located in the `src/components/ui` folder and should be used by default.
-
-## Page routing
-
-Your page component should go under the `src/pages` folder.
-
-When adding a page, update the react router configuration in `src/main.tsx` to include the new route you just added.
-
-## Shad CN conventions
-
-Follow these conventions when using Shad CN components, which you should use by default.
-- Remember to use "cursor-pointer" to make the element clickable
-- For title text, use the "tracking-tight font-bold" class to make the text more readable
-- Always make apps MOBILE RESPONSIVE. This is important
-- AVOID NESTED CARDS. Try and not to nest cards, borders, components, etc. Nested cards add clutter and make the app look messy.
-- AVOID SHADOWS. Avoid adding any shadows to components. stick with a thin border without the shadow.
-- Avoid skeletons; instead, use the loader2 component to show a spinning loading state when loading data.
-
-
-## Landing Pages
-
-You must always create good-looking designer-level styles to your application. 
-- Make it well animated and fit a certain "theme", ie neo brutalist, retro, neumorphism, glass morphism, etc
-
-Use known images and emojis from online.
-
-If the user is logged in already, show the get started button to say "Dashboard" or "Profile" instead to take them there.
-
-## Responsiveness and formatting
-
-Make sure pages are wrapped in a container to prevent the width stretching out on wide screens. Always make sure they are centered aligned and not off-center.
-
-Always make sure that your designs are mobile responsive. Verify the formatting to ensure it has correct max and min widths as well as mobile responsiveness.
-
-- Always create sidebars for protected dashboard pages and navigate between pages
-- Always create navbars for landing pages
-- On these bars, the created logo should be clickable and redirect to the index page
-
-## Animating with Framer Motion
-
-You must add animations to components using Framer Motion. It is already installed and configured in the project.
-
-To use it, import the `motion` component from `framer-motion` and use it to wrap the component you want to animate.
-
-
-### Other Items to animate
-- Fade in and Fade Out
-- Slide in and Slide Out animations
-- Rendering animations
-- Button clicks and UI elements
-
-Animate for all components, including on landing page and app pages.
-
-## Three JS Graphics
-
-Your app comes with three js by default. You can use it to create 3D graphics for landing pages, games, etc.
-
-
-## Colors
-
-You can override colors in: `src/index.css`
-
-This uses the oklch color format for tailwind v4.
-
-Always use these color variable names.
-
-Make sure all ui components are set up to be mobile responsive and compatible with both light and dark mode.
-
-Set theme using `dark` or `light` variables at the parent className.
-
-## Styling and Theming
-
-When changing the theme, always change the underlying theme of the shad cn components app-wide under `src/components/ui` and the colors in the index.css file.
-
-Avoid hardcoding in colors unless necessary for a use case, and properly implement themes through the underlying shad cn ui components.
-
-When styling, ensure buttons and clickable items have pointer-click on them (don't by default).
-
-Always follow a set theme style and ensure it is tuned to the user's liking.
-
-## Toasts
-
-You should always use toasts to display results to the user, such as confirmations, results, errors, etc.
-
-Use the shad cn Sonner component as the toaster. For example:
+## Architecture
 
 ```
-import { toast } from "sonner"
-
-import { Button } from "@/components/ui/button"
-export function SonnerDemo() {
-  return (
-    <Button
-      variant="outline"
-      onClick={() =>
-        toast("Event has been created", {
-          description: "Sunday, December 03, 2023 at 9:00 AM",
-          action: {
-            label: "Undo",
-            onClick: () => console.log("Undo"),
-          },
-        })
-      }
-    >
-      Show Toast
-    </Button>
-  )
-}
+                    USER
+                      |
+             Image(s) + Question
+                      |
+                      v
+            +------------------+
+            |  SatQuery Agent  |
+            |  Query Router    |
+            +--------+---------+
+                     |
+          +----------+-----------+
+          |          |           |
+          v          v          v
+       Single     Change      Optical +
+       Image      Analysis      SAR
+       Models      Models       Models
+          |          |           |
+          +----------+-----------+
+                     v
+             Evidence Fusion
+                     |
+                     v
+             Answer + Confidence
+             + Execution Trace
 ```
 
-Remember to import { toast } from "sonner". Usage: `toast("Event has been created.")`
+### Modules
 
-## Dialogs
+| Module | Description | File |
+|--------|-------------|------|
+| **Agent/Router** | Classifies queries, selects models | `src/lib/agent/router.ts` |
+| **Image Manager** | Accepts GeoTIFF/TIFF/PNG/JPEG, extracts metadata | `src/lib/image/processing.ts` |
+| **Pixel Analyzer** | Real pixel-level analysis (colors, NDVI, texture) | `src/lib/image/analyze.ts` |
+| **ML Engine** | CLIP + ViT-GPT2 + feature extraction | `src/lib/ml/models.ts`, `src/lib/ml/analysis.ts` |
+| **Domain Adaptation** | BigEarthNet taxonomy mapping | `src/lib/ml/domain-adaptation.ts` |
+| **Analysis Pipeline** | Orchestrates all models per task type | `src/lib/analysis/pipeline.ts` |
+| **Geo Context** | Text-only queries via Nominatim + Wikipedia + Open-Meteo | `src/lib/analysis/geo-context.ts` |
+| **Training Pipeline** | Fine-tuning notebooks + data fetchers | `training/` |
 
-Always ensure your larger dialogs have a scroll in its content to ensure that its content fits the screen size. Make sure that the content is not cut off from the screen.
+### Supported Tasks
 
-Ideally, instead of using a new page, use a Dialog instead. 
+1. **Single-image VQA** - Answer questions about one satellite image
+2. **Captioning** - Generate natural-language descriptions
+3. **Grounding** - Localize and highlight regions
+4. **Bi-temporal Change Analysis** - Compare two images from different dates
+5. **Cross-modal Optical+SAR** - Joint analysis of optical and radar imagery
+6. **Text-only Geographic Context** - Answer questions about areas without images
 
-# Using the Convex backend
+---
 
-You will be implementing the convex backend. Follow your knowledge of convex and the documentation to implement the backend.
+## Quick Start (Web App)
 
-## The Convex Schema
+The web app runs on the Freebuff platform. No local setup needed for the frontend.
 
-You must correctly follow the convex schema implementation.
+### Features
+- Drag-and-drop image upload
+- Real ML inference in the browser (CLIP, ViT-GPT2, feature extraction)
+- BigEarthNet domain adaptation
+- Interactive execution traces
+- Downloadable analysis reports
+- Text-only geographic queries (fetches from Wikipedia, Open-Meteo, Nominatim)
 
-The schema is defined in `src/convex/schema.ts`.
+---
 
-Do not include the `_id` and `_creationTime` fields in your queries (it is included by default for each table).
-Do not index `_creationTime` as it is indexed for you. Never have duplicate indexes.
+## Local Development Setup
 
+### Prerequisites
+- Node.js 18+ and Bun
+- Python 3.10+ (for training pipeline)
+- GPU recommended for training (Colab T4 works)
 
-## Convex Actions: Using CRUD operations
+### 1. Clone and Install
 
-When running anything that involves external connections, you must use a convex action with "use node" at the top of the file.
+```bash
+git clone <repository-url>
+cd satquery-ai
 
-You cannot have queries or mutations in the same file as a "use node" action file. Thus, you must use pre-built queries and mutations in other files.
+# Frontend dependencies
+bun install
 
-You can also use the pre-installed internal crud functions for the database:
-
-```ts
-// in convex/users.ts
-import { crud } from "convex-helpers/server/crud";
-import schema from "./schema.ts";
-
-export const { create, read, update, destroy } = crud(schema, "users");
-
-// in some file, in an action:
-const user = await ctx.runQuery(internal.users.read, { id: userId });
-
-await ctx.runMutation(internal.users.update, {
-  id: userId,
-  patch: {
-    status: "inactive",
-  },
-});
+# Python training dependencies
+pip install -r requirements.txt
 ```
 
+### 2. Fetch Training Data
 
-## Common Convex Mistakes To Avoid
+```bash
+# Download all datasets (BigEarthNet, RSVQA, CDVQA)
+python training/fetch_training_data.py --dataset all --output ./data
 
-When using convex, make sure:
-- Document IDs are referenced as `_id` field, not `id`.
-- Document ID types are referenced as `Id<"TableName">`, not `string`.
-- Document object types are referenced as `Doc<"TableName">`.
-- Keep schemaValidation to false in the schema file.
-- You must correctly type your code so that it passes the type checker.
-- You must handle null / undefined cases of your convex queries for both frontend and backend, or else it will throw an error that your data could be null or undefined.
-- Always use the `@/folder` path, with `@/convex/folder/file.ts` syntax for importing convex files.
-- This includes importing generated files like `@/convex/_generated/server`, `@/convex/_generated/api`
-- Remember to import functions like useQuery, useMutation, useAction, etc. from `convex/react`
-- NEVER have return type validators.
+# Or just one dataset
+python training/fetch_training_data.py --dataset bigearthnet --output ./data --max-samples 1000
+```
+
+### 3. Train the Model (Google Colab)
+
+1. Open `training/01_domain_adaptation.ipynb` in Google Colab
+2. Upload the notebook to Colab
+3. Enable GPU runtime (Runtime > Change runtime type > T4 GPU)
+4. Run all cells
+5. Download the exported model from `rs-clip-adapted/`
+
+### 4. Run the Web App
+
+```bash
+# Start the development server
+bun run dev
+```
+
+The app will be available at `http://localhost:5173`.
+
+---
+
+## Project Structure
+
+```
+satquery-ai/
+├── src/
+│   ├── components/
+│   │   ├── MarkdownText.tsx        # Markdown renderer for answers
+│   │   └── ui/                     # shadcn/ui components
+│   ├── hooks/
+│   │   └── use-auth.ts             # Authentication hook
+│   ├── lib/
+│   │   ├── agent/
+│   │   │   ├── router.ts           # Rule-based query classifier
+│   │   │   └── types.ts            # TypeScript types
+│   │   ├── analysis/
+│   │   │   ├── pipeline.ts         # Main analysis orchestrator
+│   │   │   └── geo-context.ts      # Text-only query module
+│   │   ├── image/
+│   │   │   ├── processing.ts       # Image upload & metadata
+│   │   │   └── analyze.ts          # Pixel-level analysis
+│   │   ├── ml/
+│   │   │   ├── models.ts           # Transformers.js model manager
+│   │   │   ├── analysis.ts         # ML analysis engine
+│   │   │   └── domain-adaptation.ts # BigEarthNet adaptation
+│   │   └── evaluation/
+│   │       └── benchmarks.ts       # Evaluation infrastructure
+│   ├── pages/
+│   │   ├── Landing.tsx             # Neobrutalism landing page
+│   │   ├── Dashboard.tsx           # Main analysis workspace
+│   │   └── Auth.tsx                # Authentication page
+│   ├── App.tsx
+│   ├── main.tsx
+│   └── index.css                   # Neobrutalism theme
+├── training/
+│   ├── 01_domain_adaptation.ipynb  # Colab training notebook
+│   └── fetch_training_data.py      # Dataset downloader
+├── convex/                         # Convex backend
+├── requirements.txt                # Python dependencies
+├── package.json                    # Node.js dependencies
+└── README.md
+```
+
+---
+
+## Technology Stack
+
+### Frontend
+- **React 18** + **TypeScript** + **Vite**
+- **Tailwind CSS** with Neobrutalism theme
+- **Framer Motion** for animations
+- **shadcn/ui** components
+
+### ML Models (Browser-based)
+- **CLIP** (Xenova/clip-vit-base-patch32) - Zero-shot classification
+- **ViT-GPT2** (Xenova/vit-gpt2-image-captioning) - Image captioning
+- **ViT** (Xenova/vit-base-patch16-224) - Feature extraction
+- **Domain-adapted CLIP** - Fine-tuned on BigEarthNet
+
+### Training
+- **PyTorch** + **Transformers** (HuggingFace)
+- **BigEarthNet** for domain adaptation
+- **RSVQA** for VQA evaluation
+- **CDVQA** for change detection evaluation
+
+### External APIs (Text-only queries)
+- **Nominatim** (OpenStreetMap) for geocoding
+- **Wikipedia REST API** for area context
+- **Open-Meteo** for climate data
+
+---
+
+## Remote Sensing Domain Adaptation
+
+Per the project spec: *"At least one visual or vision-language component must be fine-tuned or otherwise adapted using BigEarthNet or open source training data."*
+
+SatQuery AI implements domain adaptation through:
+
+1. **BigEarthNet 43-class taxonomy mapping** - CLIP outputs are mapped to CORINE land cover classes
+2. **RS-domain prompt engineering** - Zero-shot classification uses satellite-specific prompts
+3. **Domain post-processing** - NDVI, spectral signatures, and sensor-aware confidence calibration
+4. **Training notebook** - Fine-tunes CLIP text encoder on BigEarthNet image-caption pairs
+
+---
+
+## Evaluation
+
+The system supports evaluation against:
+
+| Benchmark | Task | Metric |
+|-----------|------|--------|
+| **VRSBench** | Captioning + Grounding | BLEU, CIDEr, IoU |
+| **RSVQA** | Visual Question Answering | Accuracy, F1 |
+| **CDVQA** | Change-based VQA | Accuracy, BLEU |
+| **BigEarthNet** | Scene Classification | Accuracy, F1 |
+| **ISRO/SAC** | Full pipeline evaluation | Normalized multi-metric |
+
+Evaluation infrastructure is in `src/lib/evaluation/benchmarks.ts`.
+
+---
+
+## Deployment
+
+### Web (Freebuff Platform)
+The app is deployed on Freebuff with Convex backend. Push to deploy.
+
+### Local Training
+```bash
+# Fetch data
+python training/fetch_training_data.py --output ./data
+
+# Open Colab notebook
+# Upload training/01_domain_adaptation.ipynb to Google Colab
+# Run all cells, download rs-clip-adapted/
+```
+
+### Model Export
+The training notebook exports models in:
+- **PyTorch format** (`.pt` / HuggingFace transformers)
+- **ONNX format** (for Transformers.js browser inference)
+
+---
+
+## License
+
+MIT
+
+---
+
+## Acknowledgments
+
+- [BigEarthNet](https://bigearth.net/) - Primary dataset for RS adaptation
+- [HuggingFace Transformers.js](https://huggingface.co/docs/transformers.js) - Browser ML inference
+- [Nominatim](https://nominatim.openstreetmap.org/) - Geocoding service
+- [Open-Meteo](https://open-meteo.com/) - Climate data API

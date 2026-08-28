@@ -84,13 +84,15 @@ export async function executeAnalysis(
   };
   onStep([...steps]);
 
-  // Step 4: ML model loading (if not cached)
-  steps.push({
-    step: "ML Model Loading",
-    status: "processing",
-    detail: "Loading vision models into browser memory",
-  });
-  onStep([...steps]);
+  // Step 4: ML model loading (only for image-based tasks)
+  if (taskPlan.inputType !== "text_only") {
+    steps.push({
+      step: "ML Model Loading",
+      status: "processing",
+      detail: "Loading vision models into browser memory",
+    });
+    onStep([...steps]);
+  }
 
   const modelResult = await executeModelPipeline(
     taskPlan,
@@ -823,7 +825,13 @@ async function executeTextContext(
   onStep([...steps]);
   await delay(400);
 
-  const context = await fetchGeoContext(query);
+  let context;
+  try {
+    context = await fetchGeoContext(query);
+  } catch (err) {
+    console.error("[GeoContext] fetchGeoContext failed:", err);
+    context = null;
+  }
 
   if (!context) {
     steps[steps.length - 1] = {
@@ -834,10 +842,24 @@ async function executeTextContext(
     };
     onStep([...steps]);
 
+    steps.push({ step: "Answer Generation", status: "processing", detail: "Building general response" });
+    onStep([...steps]);
+    await delay(200);
+
+    const fallbackAnswer = buildFallbackAnswer(query);
+
+    steps[steps.length - 1] = {
+      step: "Answer Generation",
+      status: "completed",
+      detail: "General remote sensing guidance provided",
+      duration: 200,
+    };
+    onStep([...steps]);
+
     return {
-      answer: "I could not identify a specific geographic location from your question. Try mentioning a city, country, or region name (e.g., \"What is the land cover of the Amazon rainforest?\").",
-      confidence: 0.3,
-      detail: "Geo-context: no location identified",
+      answer: fallbackAnswer,
+      confidence: 0.5,
+      detail: "Geo-context: general RS guidance (location not resolved)",
     };
   }
 
@@ -882,6 +904,23 @@ async function executeTextContext(
     confidence: 0.82,
     detail: `Geo-context - Nominatim + Wikipedia + Open-Meteo + RS Knowledge Base`,
   };
+}
+
+// ── Fallback for unresolvable queries ─────────────────────────
+
+function buildFallbackAnswer(query: string): string {
+  const parts: string[] = [];
+  parts.push("**I could not identify a specific location from your question.**");
+  parts.push("");
+  parts.push("Here are some examples of questions I can answer:");
+  parts.push("");
+  parts.push('- **"What is the land cover of Mumbai?"** - Provides land cover, climate, and RS analysis for Mumbai, India');
+  parts.push('- **"Tell me about deforestation in the Amazon."** - Fetches Wikipedia context, climate data, and RS monitoring guidance');
+  parts.push('- **"What satellite imagery would be useful for monitoring the Sahara?"** - Recommends sensors and analysis methods');
+  parts.push('- **"Describe the terrain of Iceland."** - Provides terrain, climate, and remote sensing context');
+  parts.push("");
+  parts.push("**Tips:** Include a place name (city, country, region, river, forest, desert) in your question. I can also answer questions about specific satellite images if you upload them.");
+  return parts.join("\n");
 }
 
 // ── Helpers ──────────────────────────────────────────────────────

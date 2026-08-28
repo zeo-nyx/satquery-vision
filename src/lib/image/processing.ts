@@ -39,6 +39,11 @@ export function validateImageInputs(
   const warnings: string[] = [];
   const errors: string[] = [];
 
+  // Text-only queries need no images
+  if (expectedType === "text_only") {
+    return { isValid: true, warnings: [], errors: [], compatibility: defaultCompat() };
+  }
+
   if (images.length === 0) {
     errors.push("No images provided");
     return { isValid: false, warnings, errors, compatibility: defaultCompat() };

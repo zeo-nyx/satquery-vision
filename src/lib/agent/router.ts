@@ -1,4 +1,5 @@
 import type { ImageMetadata, TaskPlan, TaskType, InputType } from "./types";
+import { isTextOnlyQuery } from "../analysis/geo-context";
 
 /**
  * Rule-based query router — classifies user queries and selects
@@ -10,6 +11,16 @@ export function routeQuery(
 ): TaskPlan {
   const q = query.toLowerCase().trim();
   const numImages = images.length;
+
+  // ── Text-only query (no images) ─────────────────────────────────
+  if (numImages === 0 && isTextOnlyQuery(query)) {
+    return {
+      task: "text_context",
+      inputType: "text_only",
+      models: ["geo-context", "rs-knowledge-base"],
+      description: "Geographic context analysis from open data sources",
+    };
+  }
 
   // ── Single image ────────────────────────────────────────────────
   if (numImages === 1) {

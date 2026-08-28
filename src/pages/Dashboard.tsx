@@ -28,12 +28,19 @@ import { routeQuery } from "@/lib/agent/router";
 import { executeAnalysis } from "@/lib/analysis/pipeline";
 
 const EXAMPLE_QUERIES = [
-  { text: "Is there a river in this image?", icon: "🌊" },
-  { text: "Describe the land cover in this image.", icon: "🗺️" },
-  { text: "Has the built-up area increased?", icon: "🏗️" },
-  { text: "Where are the urban structures?", icon: "📍" },
-  { text: "What changed between these two images?", icon: "🔄" },
-  { text: "Use optical and SAR to identify built-up areas.", icon: "🛰️" },
+  { text: "Is there a river in this image?", icon: "🌊", needsImages: true },
+  { text: "Describe the land cover in this image.", icon: "🗺️", needsImages: true },
+  { text: "Has the built-up area increased?", icon: "🏗️", needsImages: true },
+  { text: "Where are the urban structures?", icon: "📍", needsImages: true },
+  { text: "What changed between these two images?", icon: "🔄", needsImages: true },
+  { text: "Use optical and SAR to identify built-up areas.", icon: "🛰️", needsImages: true },
+];
+
+const TEXT_ONLY_QUERIES = [
+  { text: "What is the land cover of Mumbai?", icon: "🏙️" },
+  { text: "Tell me about deforestation in the Amazon.", icon: "🌲" },
+  { text: "What satellite imagery would be useful for monitoring the Sahara?", icon: "🛰️" },
+  { text: "Describe the terrain and climate of Iceland.", icon: "🏔️" },
 ];
 
 export default function Dashboard() {
@@ -87,7 +94,7 @@ export default function Dashboard() {
   };
 
   const handleAnalyze = async () => {
-    if (images.length === 0 || !query.trim()) return;
+    if (!query.trim()) return;
 
     setIsAnalyzing(true);
     setResult(null);
@@ -128,10 +135,10 @@ export default function Dashboard() {
     }
   };
 
-  const handleExampleQuery = (q: string) => {
+  const handleExampleQuery = (q: string, needsImages = true) => {
     setQuery(q);
-    if (images.length === 0) {
-      // Auto-load demo images if none uploaded
+    if (needsImages && images.length === 0) {
+      // Auto-load demo images only for image-based queries
       loadDemoImages();
     }
   };
@@ -220,7 +227,7 @@ export default function Dashboard() {
     URL.revokeObjectURL(url);
   };
 
-  const canAnalyze = images.length > 0 && query.trim() && !isAnalyzing;
+  const canAnalyze = query.trim() && !isAnalyzing;
 
   return (
     <div className="min-h-screen bg-[#F5F0E8] text-[#1A1A2E] font-mono flex flex-col">
@@ -445,7 +452,7 @@ export default function Dashboard() {
                   <textarea
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder='Ask a question about your satellite images... e.g. "Is there a river in this image?"'
+                    placeholder='Ask about satellite images or any location... e.g. "Is there a river in this image?" or "What is the land cover of Mumbai?"'
                     rows={3}
                     className="w-full resize-none bg-transparent p-3 text-sm font-mono outline-none placeholder:text-[#1A1A2E]/30"
                     onKeyDown={(e) => {
@@ -488,15 +495,34 @@ export default function Dashboard() {
               <div>
                 <div className="mb-2">
                   <span className="nb-tag bg-[#F5F0E8] text-[#1A1A2E]/50">
-                    Try these
+                    With images
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {EXAMPLE_QUERIES.map((ex, i) => (
                     <button
                       key={i}
-                      onClick={() => handleExampleQuery(ex.text)}
+                      onClick={() => handleExampleQuery(ex.text, ex.needsImages)}
                       className="nb-card-sm bg-white px-3 py-2 text-left text-xs hover:bg-[#FFD166]/20 transition-colors cursor-pointer"
+                    >
+                      <span className="mr-1.5">{ex.icon}</span>
+                      <span className="text-[#1A1A2E]/70">{ex.text}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="mb-2">
+                  <span className="nb-tag bg-[#06D6A0] text-white">
+                    No images needed
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {TEXT_ONLY_QUERIES.map((ex, i) => (
+                    <button
+                      key={i}
+                      onClick={() => handleExampleQuery(ex.text, false)}
+                      className="nb-card-sm bg-white px-3 py-2 text-left text-xs hover:bg-[#06D6A0]/10 transition-colors cursor-pointer"
                     >
                       <span className="mr-1.5">{ex.icon}</span>
                       <span className="text-[#1A1A2E]/70">{ex.text}</span>
@@ -561,7 +587,7 @@ export default function Dashboard() {
                     No analysis results yet
                   </p>
                   <p className="mt-1 text-xs text-[#1A1A2E]/20">
-                    Upload images and ask a question to begin
+                    Upload images for analysis, or ask about any location directly
                   </p>
                 </div>
               )}

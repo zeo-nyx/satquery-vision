@@ -24,12 +24,14 @@ export type TaskType =
   | "captioning"
   | "grounding"
   | "change_analysis"
-  | "cross_modal_analysis";
+  | "cross_modal_analysis"
+  | "text_context";
 
 export type InputType =
   | "single_image"
   | "bi_temporal"
-  | "optical_sar_pair";
+  | "optical_sar_pair"
+  | "text_only";
 
 export interface TaskPlan {
   task: TaskType;

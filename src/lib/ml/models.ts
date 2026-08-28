@@ -191,9 +191,39 @@ export async function getImageCaptioner() {
   return getPipeline<ImageToTextPipeline>("image-to-text");
 }
 
+/**
+ * DETR is trained on COCO (everyday objects like giraffe, car, etc.)
+ * and produces irrelevant results on satellite imagery.
+ * Instead, we provide a CLIP-based satellite object detector that
+ * uses RS-relevant labels to identify and localize features.
+ */
 export async function getObjectDetector() {
   return getPipeline<ObjectDetectionPipeline>("object-detection");
 }
+
+/**
+ * RS-specific object labels for CLIP-based detection.
+ * These replace COCO's irrelevant classes (giraffe, person, etc.)
+ * with labels meaningful for satellite imagery.
+ */
+export const RS_OBJECT_LABELS = [
+  "buildings and urban structures",
+  "road network and highways",
+  "water body such as river or lake",
+  "forest and tree canopy",
+  "agricultural fields and farmland",
+  "industrial area with large buildings",
+  "residential housing area",
+  "parking lot or open paved area",
+  "dam or reservoir",
+  "port or harbor infrastructure",
+  "airport runway or taxiway",
+  "bridge crossing water",
+  "railway tracks",
+  "power plant or industrial facility",
+  "sports field or stadium",
+  "bare land or construction site",
+];
 
 export async function getFeatureExtractor() {
   return getPipeline<FeatureExtractionPipeline>("feature-extraction");

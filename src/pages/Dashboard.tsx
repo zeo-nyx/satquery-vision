@@ -20,6 +20,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import type { ImageMetadata, AnalysisResult, ExecutionStep, TaskPlan } from "@/lib/agent/types";
+import { getLoadedPipelines } from "@/lib/ml/models";
 import { extractImageMetadata } from "@/lib/image/processing";
 import { routeQuery } from "@/lib/agent/router";
 import { executeAnalysis } from "@/lib/analysis/pipeline";
@@ -47,6 +48,7 @@ export default function Dashboard() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [showTrace, setShowTrace] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [loadedModels, setLoadedModels] = useState<string[]>([]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -77,6 +79,11 @@ export default function Dashboard() {
     [handleFiles],
   );
 
+  // Poll for loaded ML models
+  const updateModelStatus = useCallback(() => {
+    setLoadedModels(getLoadedPipelines());
+  }, []);
+
   const removeImage = (id: string) => {
     setImages((prev) => prev.filter((img) => img.id !== id));
   };
@@ -103,6 +110,7 @@ export default function Dashboard() {
       );
 
       setResult(analysisResult);
+      setLoadedModels(getLoadedPipelines());
     } catch (error) {
       console.error("Analysis failed:", error);
       setAnalysisSteps((prev) => [
@@ -183,6 +191,11 @@ export default function Dashboard() {
               <span className="ml-2 nb-badge bg-[#06D6A0] text-white text-[0.6rem]">
                 MVP v1
               </span>
+              {loadedModels.length > 0 && (
+                <span className="nb-badge bg-[#7B68EE] text-white text-[0.55rem] ml-1">
+                  {loadedModels.length} ML models loaded
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -427,6 +440,35 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
+            </div>
+
+            {/* ML Model Status */}
+            <div className="nb-card bg-white p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="nb-tag bg-[#7B68EE] text-white">
+                  ML Models
+                </span>
+                <span className="text-[0.6rem] text-[#1A1A2E]/40 uppercase tracking-wider">
+                  Transformers.js + ONNX Runtime
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[0.65rem]">
+                {[
+                  { name: "CLIP", task: "Zero-shot classification", color: "bg-[#06D6A0]" },
+                  { name: "ViT-GPT2", task: "Image captioning", color: "bg-[#FFD166]" },
+                  { name: "DETR", task: "Object detection", color: "bg-[#EF476F]" },
+                  { name: "ViT", task: "Feature extraction", color: "bg-[#118AB2]" },
+                ].map((m) => (
+                  <div key={m.name} className="flex items-center gap-2 border-[1.5px] border-[#1A1A2E]/10 p-2">
+                    <span className={`size-2 ${m.color} shrink-0`} />
+                    <span className="font-bold">{m.name}</span>
+                    <span className="text-[#1A1A2E]/40">{m.task}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[0.6rem] text-[#1A1A2E]/30">
+                Models load on first analysis. First query may take 10-30s. Subsequent queries use cached models.
+              </p>
             </div>
 
             {/* ── RIGHT: RESULTS PANEL ───────────────────────── */}

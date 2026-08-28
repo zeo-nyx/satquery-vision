@@ -23,6 +23,59 @@ const MODEL_IDS: Record<string, string> = {
   "feature-extraction": "Xenova/vit-base-patch16-224",
 };
 
+// Custom trained model paths (populated after training)
+const CUSTOM_MODEL_DIR = "/models/rs-clip-adapted";
+let customModelReady = false;
+let customModelConfig: Record<string, unknown> | null = null;
+
+/**
+ * Check if a custom trained RS model is available.
+ * This is set after the user trains and exports the model.
+ */
+export async function checkCustomModel(): Promise<{
+  available: boolean;
+  config: Record<string, unknown> | null;
+}> {
+  if (customModelReady) {
+    return { available: true, config: customModelConfig };
+  }
+
+  try {
+    const resp = await fetch(`${CUSTOM_MODEL_DIR}/model_config.json`);
+    if (resp.ok) {
+      customModelConfig = await resp.json();
+      customModelReady = true;
+      console.log("[ML] Custom trained RS model found!");
+      return { available: true, config: customModelConfig };
+    }
+  } catch {
+    // Not found - use default model
+  }
+
+  return { available: false, config: null };
+}
+
+/**
+ * Get the model ID to use for zero-shot classification.
+ * Uses custom trained model if available, otherwise default CLIP.
+ */
+function getZeroShotModelId(): string {
+  if (customModelReady) {
+    return CUSTOM_MODEL_DIR;
+  }
+  return MODEL_IDS["zero-shot-image-classification"];
+}
+
+/**
+ * Get RS labels (custom or default).
+ */
+export function getRSLabels(): string[] {
+  if (customModelConfig && Array.isArray(customModelConfig.rs_labels)) {
+    return customModelConfig.rs_labels as string[];
+  }
+  return RS_LABELS;
+}
+
 // Remote-sensing-specific labels for zero-shot classification
 export const RS_LABELS = [
   "urban area with buildings",
@@ -182,6 +235,27 @@ export async function getImageClassifier() {
 }
 
 export async function getZeroShotClassifier() {
+  // Check for custom trained model first
+  const custom = await checkCustomModel();
+  if (custom.available) {
+    // Load from custom path instead of HuggingFace
+    const cacheKey = "custom-zeroshot";
+    if (pipelineCache.has(cacheKey)) {
+      return pipelineCache.get(cacheKey) as ZeroShotImageClassificationPipeline;
+    }
+    if (loadingPromises.has(cacheKey)) {
+      return loadingPromises.get(cacheKey) as Promise<ZeroShotImageClassificationPipeline | null>;
+    }
+    
+    const loadPromise = loadPipeline<ZeroShotImageClassificationPipeline>(
+      "zero-shot-image-classification",
+      CUSTOM_MODEL_DIR,
+    );
+    loadingPromises.set(cacheKey, loadPromise as Promise<unknown>);
+    return loadPromise;
+  }
+  
+  // Fall back to default CLIP
   return getPipeline<ZeroShotImageClassificationPipeline>(
     "zero-shot-image-classification",
   );

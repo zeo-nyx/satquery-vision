@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,7 +21,7 @@ import {
   Download,
 } from "lucide-react";
 import type { ImageMetadata, AnalysisResult, ExecutionStep, TaskPlan } from "@/lib/agent/types";
-import { getLoadedPipelines } from "@/lib/ml/models";
+import { getLoadedPipelines, checkCustomModel, getRSLabels } from "@/lib/ml/models";
 import { MarkdownText } from "@/components/MarkdownText";
 import { extractImageMetadata, validateImageInputs } from "@/lib/image/processing";
 import { routeQuery } from "@/lib/agent/router";
@@ -59,6 +59,17 @@ export default function Dashboard() {
   const [dragOver, setDragOver] = useState(false);
   const [loadedModels, setLoadedModels] = useState<string[]>([]);
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
+  const [customModelInfo, setCustomModelInfo] = useState<{ available: boolean; config: Record<string, unknown> | null }>({ available: false, config: null });
+
+  // Check for custom trained model on mount
+  useEffect(() => {
+    checkCustomModel().then((info) => {
+      setCustomModelInfo(info);
+      if (info.available) {
+        console.log("[SatQuery] Custom RS model loaded!");
+      }
+    });
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -252,6 +263,11 @@ export default function Dashboard() {
               <span className="ml-2 nb-badge bg-[#06D6A0] text-white text-[0.6rem]">
                 MVP v1
               </span>
+              {customModelInfo.available && (
+                <span className="nb-badge bg-[#06D6A0] text-white text-[0.55rem] ml-1">
+                  Custom RS Model
+                </span>
+              )}
               {loadedModels.length > 0 && (
                 <span className="nb-badge bg-[#7B68EE] text-white text-[0.55rem] ml-1">
                   {loadedModels.length} ML models loaded
@@ -549,11 +565,23 @@ export default function Dashboard() {
                   Transformers.js + ONNX Runtime
                 </span>
               </div>
+              {customModelInfo.available && (
+                <div className="mb-3 border-[2px] border-[#06D6A0] bg-[#06D6A0]/5 p-2">
+                  <p className="font-bold text-[0.65rem] text-[#06D6A0]">
+                    Custom RS Model Loaded
+                  </p>
+                  <p className="text-[0.55rem] text-[#1A1A2E]/50 mt-1">
+                    {(customModelInfo.config as Record<string, unknown>)?.training_samples
+                      ? `Trained on ${(customModelInfo.config as Record<string, unknown>).training_samples} samples`
+                      : "Fine-tuned on BigEarthNet"}
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2 text-[0.65rem]">
                 {[
-                  { name: "CLIP", task: "Zero-shot classification", color: "bg-[#06D6A0]" },
+                  { name: customModelInfo.available ? "CLIP (custom)" : "CLIP", task: "Zero-shot classification", color: customModelInfo.available ? "bg-[#06D6A0]" : "bg-[#06D6A0]" },
                   { name: "ViT-GPT2", task: "Image captioning", color: "bg-[#FFD166]" },
-                  { name: "DETR", task: "Object detection", color: "bg-[#EF476F]" },
+                  { name: "CLIP RS", task: "Feature detection", color: "bg-[#EF476F]" },
                   { name: "ViT", task: "Feature extraction", color: "bg-[#118AB2]" },
                 ].map((m) => (
                   <div key={m.name} className="flex items-center gap-2 border-[1.5px] border-[#1A1A2E]/10 p-2">

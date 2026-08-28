@@ -9,7 +9,7 @@ import {
   getZeroShotClassifier,
   getImageCaptioner,
   getFeatureExtractor,
-  RS_LABELS,
+  getRSLabels,
   RS_OBJECT_LABELS,
 } from "./models";
 import {
@@ -244,7 +244,8 @@ async function runClassification(
   if (!classifier) return null;
 
   try {
-    const results = await classifier(dataUrl, RS_LABELS, {
+    const rsLabels = getRSLabels();
+    const results = await classifier(dataUrl, rsLabels, {
       hypothesis_template:
         "This satellite image shows a landscape dominated by {}",
     });

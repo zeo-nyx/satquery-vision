@@ -127,11 +127,11 @@ export default function Dashboard() {
   };
 
   const loadDemoImages = async () => {
-    // Create synthetic demo image metadata
+    // Create synthetic demo images with distinct, analyzable content
     const demoImages: ImageMetadata[] = [
       {
         id: "demo_1",
-        fileName: "sentinel2_rgb_2025-01-15.tif",
+        fileName: "sentinel2_urban_2025-01-15.tif",
         modality: "optical",
         width: 512,
         height: 512,
@@ -143,11 +143,11 @@ export default function Dashboard() {
         sensor: "Sentinel-2",
         fileSize: 2048000,
         format: "geotiff",
-        dataUrl: generateDemoImage("#4a7c59", "#2d5a3f", "#8fbc8f"),
+        dataUrl: generateDemoImage("urban"),
       },
       {
         id: "demo_2",
-        fileName: "sentinel2_rgb_2026-01-20.tif",
+        fileName: "sentinel2_urban_2026-01-20.tif",
         modality: "optical",
         width: 512,
         height: 512,
@@ -159,7 +159,7 @@ export default function Dashboard() {
         sensor: "Sentinel-2",
         fileSize: 2148000,
         format: "geotiff",
-        dataUrl: generateDemoImage("#8b7355", "#c4a882", "#6b8e6b"),
+        dataUrl: generateDemoImage("urban-grown"),
       },
     ];
     setImages(demoImages);
@@ -700,11 +700,7 @@ export default function Dashboard() {
 /**
  * Generate a synthetic demo satellite image using canvas.
  */
-function generateDemoImage(
-  color1: string,
-  color2: string,
-  accent: string,
-): string {
+function generateDemoImage(variant: "urban" | "urban-grown"): string {
   const canvas = document.createElement("canvas");
   const size = 512;
   canvas.width = size;
@@ -712,64 +708,141 @@ function generateDemoImage(
   const ctx = canvas.getContext("2d");
   if (!ctx) return "";
 
-  // Base terrain
-  ctx.fillStyle = color1;
+  const isGrown = variant === "urban-grown";
+
+  // ── Base terrain: mix of green/brown ─────────────────────────
+  // Seed a simple pseudo-random for deterministic but varied content
+  const seed = isGrown ? 42 : 7;
+  let rng = seed;
+  const rand = () => {
+    rng = (rng * 16807) % 2147483647;
+    return (rng - 1) / 2147483646;
+  };
+
+  // Fill base with vegetation tones
+  ctx.fillStyle = isGrown ? "#5a6e42" : "#6b8e5a";
   ctx.fillRect(0, 0, size, size);
 
-  // Terrain texture
-  for (let i = 0; i < 200; i++) {
-    const x = Math.random() * size;
-    const y = Math.random() * size;
-    const w = Math.random() * 40 + 5;
-    const h = Math.random() * 40 + 5;
-    ctx.globalAlpha = Math.random() * 0.4 + 0.1;
-    ctx.fillStyle = Math.random() > 0.5 ? color2 : accent;
-    ctx.fillRect(x, y, w, h);
-  }
-  ctx.globalAlpha = 1;
-
-  // "Urban" grid pattern
-  ctx.strokeStyle = "#888";
-  ctx.lineWidth = 1;
-  ctx.globalAlpha = 0.3;
-  for (let x = 200; x < 400; x += 20) {
+  // Vegetation patches (green blobs)
+  for (let i = 0; i < 120; i++) {
+    const x = rand() * size;
+    const y = rand() * size;
+    const r = rand() * 25 + 5;
+    ctx.globalAlpha = rand() * 0.35 + 0.1;
+    ctx.fillStyle = rand() > 0.5 ? `hsl(${100 + rand() * 30}, ${40 + rand() * 20}%, ${25 + rand() * 20}%)` : `hsl(${30 + rand() * 20}, ${20 + rand() * 15}%, ${30 + rand() * 15}%)`;
     ctx.beginPath();
-    ctx.moveTo(x, 150);
-    ctx.lineTo(x, 350);
-    ctx.stroke();
-  }
-  for (let y = 150; y < 350; y += 20) {
-    ctx.beginPath();
-    ctx.moveTo(200, y);
-    ctx.lineTo(400, y);
-    ctx.stroke();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.globalAlpha = 1;
 
-  // "Buildings"
-  ctx.fillStyle = "#555";
-  ctx.globalAlpha = 0.5;
-  for (let i = 0; i < 30; i++) {
-    const x = 210 + Math.random() * 170;
-    const y = 160 + Math.random() * 170;
-    ctx.fillRect(x, y, 8, 8);
-  }
-  ctx.globalAlpha = 1;
-
-  // Water body
-  ctx.fillStyle = "#2255aa";
-  ctx.globalAlpha = 0.6;
+  // ── Water body (top-left) ────────────────────────────────────
+  ctx.fillStyle = "#1a3d6e";
+  ctx.globalAlpha = 0.7;
   ctx.beginPath();
-  ctx.ellipse(80, 80, 50, 30, 0, 0, Math.PI * 2);
+  ctx.ellipse(70, 60, 55 + (isGrown ? -8 : 0), 28, 0.2, 0, Math.PI * 2);
+  ctx.fill();
+  // Water edge highlight
+  ctx.fillStyle = "#2a5d9e";
+  ctx.globalAlpha = 0.4;
+  ctx.beginPath();
+  ctx.ellipse(75, 65, 40, 18, 0.2, 0, Math.PI * 2);
   ctx.fill();
   ctx.globalAlpha = 1;
 
+  // ── River/stream (bottom portion) ─────────────────────────────
+  ctx.strokeStyle = "#1a3d6e";
+  ctx.lineWidth = 6;
+  ctx.globalAlpha = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(0, 400);
+  ctx.bezierCurveTo(100, 380, 200, 420, 300, 390);
+  ctx.bezierCurveTo(400, 360, 450, 380, 512, 370);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // ── Urban zone (center-right) ────────────────────────────────
+  const urbanX = isGrown ? 200 : 250;
+  const urbanY = isGrown ? 160 : 200;
+  const urbanW = isGrown ? 220 : 160;
+  const urbanH = isGrown ? 200 : 140;
+
+  // Urban base (gray)
+  ctx.fillStyle = "#7a7a7a";
+  ctx.globalAlpha = 0.5;
+  ctx.fillRect(urbanX, urbanY, urbanW, urbanH);
+  ctx.globalAlpha = 1;
+
+  // Road grid
+  ctx.strokeStyle = "#999";
+  ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.5;
+  for (let x = urbanX; x < urbanX + urbanW; x += 18) {
+    ctx.beginPath();
+    ctx.moveTo(x, urbanY);
+    ctx.lineTo(x, urbanY + urbanH);
+    ctx.stroke();
+  }
+  for (let y = urbanY; y < urbanY + urbanH; y += 18) {
+    ctx.beginPath();
+    ctx.moveTo(urbanX, y);
+    ctx.lineTo(urbanX + urbanW, y);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // Buildings (dark rectangles)
+  ctx.fillStyle = "#4a4a4a";
+  ctx.globalAlpha = 0.6;
+  const buildingCount = isGrown ? 80 : 40;
+  for (let i = 0; i < buildingCount; i++) {
+    const bx = urbanX + 5 + rand() * (urbanW - 15);
+    const by = urbanY + 5 + rand() * (urbanH - 15);
+    const bw = 6 + rand() * 8;
+    const bh = 6 + rand() * 8;
+    ctx.fillRect(bx, by, bw, bh);
+  }
+  ctx.globalAlpha = 1;
+
+  // ── New development in "grown" variant ───────────────────────
+  if (isGrown) {
+    // New buildings in NE corner
+    ctx.fillStyle = "#5a5a5a";
+    ctx.globalAlpha = 0.55;
+    for (let i = 0; i < 25; i++) {
+      const bx = 370 + rand() * 120;
+      const by = 20 + rand() * 100;
+      ctx.fillRect(bx, by, 8 + rand() * 10, 8 + rand() * 10);
+    }
+    ctx.globalAlpha = 1;
+
+    // Cleared land (brown patches where vegetation was)
+    ctx.fillStyle = "#8b7355";
+    ctx.globalAlpha = 0.5;
+    for (let i = 0; i < 8; i++) {
+      const bx = 380 + rand() * 100;
+      const by = 130 + rand() * 80;
+      ctx.fillRect(bx, by, 20 + rand() * 30, 15 + rand() * 20);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ── Soil/agriculture (bottom-left) ───────────────────────────
+  ctx.fillStyle = "#a08050";
+  ctx.globalAlpha = 0.35;
+  const soilW = isGrown ? 90 : 120;
+  ctx.fillRect(20, 300, soilW, 80);
+  ctx.globalAlpha = 1;
+
   // Label
-  ctx.fillStyle = "rgba(0,0,0,0.5)";
-  ctx.fillRect(0, size - 24, size, 24);
-  ctx.fillStyle = "#fff";
-  ctx.font = "bold 10px monospace";
-  ctx.fillText("DEMO — Simulated Satellite Imagery", 8, size - 8);
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.fillRect(0, size - 28, size, 28);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 11px monospace";
+  const label = isGrown
+    ? "DEMO — 2026 Post-Development Sentinel-2"
+    : "DEMO — 2025 Pre-Development Sentinel-2";
+  ctx.fillText(label, 10, size - 10);
 
   return canvas.toDataURL("image/png");
 }
